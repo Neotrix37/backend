@@ -5,28 +5,14 @@ builder = "nixpacks"
 startCommand = "./start.sh"
 healthcheckPath = "/health"
 healthcheckTimeout = 30
-restartPolicyType = "on-failure"
-restartPolicyMaxRetries = 3
 
 [build.environment]
 NODE_VERSION = "18.x"
 PYTHON_VERSION = "3.11"
 
-# Configurações adicionais para o Nixpacks
-[build.nixpacks]
-install = ["pip install -r requirements.txt"]
-build = ["python -m pip install --upgrade pip"]
-start = "./start.sh"
-
 [[services]]
 name = "web"
 port = 8000
-protocol = "tcp"
-internal = true
-
-[[services.tcp]]
-port = 8000
-handlers = ["http"]
 
 [healthcheck]
 timeout = 30

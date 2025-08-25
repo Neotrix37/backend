@@ -4,29 +4,25 @@ WORKDIR /app
 
 # Instalar dependências do sistema
 RUN apt-get update && apt-get install -y \
-    build-essential \
+    gcc \
+    python3-dev \
     libpq-dev \
-    postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar arquivos de requisitos primeiro para aproveitar o cache do Docker
+# Copiar apenas os arquivos necessários primeiro para aproveitar o cache do Docker
 COPY requirements.txt .
 
 # Instalar dependências Python
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar o código da aplicação
+# Copiar o resto da aplicação
 COPY . .
 
-# Criar diretório para logs
-RUN mkdir -p logs
-
-# Expor a porta que a aplicação usa
-EXPOSE 8000
-
-# Adicionar script de inicialização
-COPY start.sh /app/start.sh
+# Tornar o script de inicialização executável
 RUN chmod +x /app/start.sh
 
-# Comando para iniciar a aplicação em produção
-CMD ["/app/start.sh"]
+# Porta que a aplicação vai usar
+EXPOSE 8000
+
+# Comando de inicialização
+CMD ["./start.sh"]
