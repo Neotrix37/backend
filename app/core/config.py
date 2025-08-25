@@ -7,18 +7,19 @@ class Settings(BaseSettings):
     APP_NAME: str = "PDV System Backend"
     API_V1_STR: str = "/api/v1"
     DEBUG: bool = True
-    ENVIRONMENT: str = "development"
+    ENVIRONMENT: str = "production"  # Alterado para produção
     
     # Configurações do Banco de Dados
-    DATABASE_URL: str = os.environ.get("DATABASE_URL", "postgresql://postgres:123456@localhost:5432/pdv_system")
+    DATABASE_URL: str = os.environ["DATABASE_URL"]  # Agora é obrigatório
+    
     # Garante que a URL do banco de dados use o formato correto para SQLAlchemy
     if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
         DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
     
     # Configurações de Segurança
-    SECRET_KEY: str = "sua-chave-secreta-muito-segura-aqui-2024"
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    SECRET_KEY: str = os.environ.get("SECRET_KEY", "sua-chave-secreta-muito-segura-aqui-2024")
+    ALGORITHM: str = os.environ.get("ALGORITHM", "HS256")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
     
     # Configurações de CORS
     ALLOWED_ORIGINS: List[str] = [
@@ -26,9 +27,8 @@ class Settings(BaseSettings):
         "http://localhost:5173",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:5173",
-        # Adicione aqui os domínios de produção
-        "https://seu-frontend-dominio.com",
-        "https://www.seu-frontend-dominio.com"
+        "https://backend-production-046c.up.railway.app",
+        "https://*.up.railway.app"
     ]
     
     # Configurações de Email (futuro)
