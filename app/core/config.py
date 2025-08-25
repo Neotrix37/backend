@@ -1,4 +1,4 @@
-from pydantic import field_validator
+from pydantic import field_validator, FieldValidationInfo
 from pydantic_settings import BaseSettings
 from typing import List, Optional
 import os
@@ -85,8 +85,8 @@ class Settings(BaseSettings):
     # Validador para garantir que a chave secreta não seja a padrão em produção
     @field_validator('SECRET_KEY')
     @classmethod
-    def validate_secret_key(cls, v, values):
-        if v == "dummy-secret-key-change-in-production" and values.get('ENVIRONMENT') != 'development':
+    def validate_secret_key(cls, v: str, info: FieldValidationInfo) -> str:
+        if v == "dummy-secret-key-change-in-production" and info.data.get('ENVIRONMENT') != 'development':
             raise ValueError("SECRET_KEY não pode ser o valor padrão em produção")
         return v
 
