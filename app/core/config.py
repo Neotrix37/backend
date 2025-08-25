@@ -1,4 +1,4 @@
-from pydantic import field_validator
+from pydantic import field_validator, Field
 from pydantic_settings import BaseSettings
 from typing import List, Optional
 import os
@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
     
     # Configurações de CORS
-    ALLOWED_ORIGINS: str = "*"  # Agora como string simples
+    ALLOWED_ORIGINS: str = "*"
     
     # Método para converter a string de origens em lista
     @property
@@ -32,15 +32,25 @@ class Settings(BaseSettings):
             return ["*"]
         return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",") if origin.strip()]
     
-    # Configurações de Email (opcional)
-    SMTP_HOST: Optional[str] = None
-    SMTP_PORT: int = 587
-    SMTP_USER: Optional[str] = None
-    SMTP_PASSWORD: Optional[str] = None
+    # Configurações de Email (opcionais)
+    SMTP_HOST: Optional[str] = ""
+    SMTP_PORT: Optional[str] = "587"  # Mantido como string para evitar problemas de parsing
+    SMTP_USER: Optional[str] = ""
+    SMTP_PASSWORD: Optional[str] = ""
     
     # Configurações do Servidor
     HOST: str = "0.0.0.0"
     PORT: int = 8000
+    
+    # Validador para converter SMTP_PORT para inteiro quando necessário
+    @field_validator('SMTP_PORT', mode='before')
+    def parse_smtp_port(cls, v):
+        if v is None or v == '':
+            return 587  # Valor padrão
+        try:
+            return int(v)
+        except (ValueError, TypeError):
+            return 587  # Valor padrão em caso de erro
     
     class Config:
         env_file = ".env"
