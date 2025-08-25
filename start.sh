@@ -1,25 +1,45 @@
 #!/bin/bash
 set -e
 
-echo "Starting application setup..."
+echo " Iniciando configuração da aplicação..."
 
 # Carregar variáveis de ambiente do arquivo .env.production se existir
 if [ -f ".env.production" ]; then
-    echo "Loading .env.production file..."
-    export $(grep -v '^#' .env.production | xargs)
+    echo " Carregando variáveis de ambiente de .env.production..."
+    # Remover aspas das variáveis de ambiente
+    export $(grep -v '^#' .env.production | xargs | sed 's/"//g')
 fi
 
-echo "Waiting for PostgreSQL to start..."
+# Configurações padrão
+: ${HOST:="0.0.0.0"}
+: ${PORT:=8000}
+: ${ENVIRONMENT:="production"}
+: ${DEBUG:="False"}
+
+echo " Ambiente: $ENVIRONMENT"
+echo " Modo Debug: $DEBUG"
+
+echo "\n Verificando dependências..."
+
+# Verificar se o Python está instalado
+if ! command -v python3 &> /dev/null; then
+    echo " Python 3 não encontrado. Por favor, instale o Python 3.8 ou superior."
+    exit 1
+fi
+
+echo " Python $(python3 --version | cut -d ' ' -f2) detectado"
+
+echo "\n Verificando conexão com o PostgreSQL..."
 
 # Verificar se a variável DATABASE_URL está definida
 if [ -z "$DATABASE_URL" ]; then
-    echo "ERROR: DATABASE_URL is not defined"
-    echo "Available environment variables:"
+    echo " ERRO: DATABASE_URL não está definida"
+    echo "Variáveis de ambiente disponíveis:"
     env | sort
     exit 1
 fi
 
-echo "Using DATABASE_URL: ${DATABASE_URL}"
+echo " Usando DATABASE_URL: ${DATABASE_URL//:*/:*****}"
 
 # Extrair informações de conexão da variável DATABASE_URL
 if [[ $DATABASE_URL =~ postgres(ql)?://([^:]+):([^@]+)@([^:]+):([^/]+)/(.+) ]]; then
@@ -28,7 +48,8 @@ if [[ $DATABASE_URL =~ postgres(ql)?://([^:]+):([^@]+)@([^:]+):([^/]+)/(.+) ]]; 
     DB_HOST="${BASH_REMATCH[4]}"
     DB_PORT="${BASH_REMATCH[5]}"
     DB_NAME="${BASH_REMATCH[6]}"
-    echo "Connecting to PostgreSQL at $DB_HOST:$DB_PORT as $DB_USER (database: $DB_NAME)"
+    
+    echo " Conectando ao PostgreSQL em $DB_HOST:$DB_PORT como $DB_USER (banco: $DB_NAME)"
     
     # Exportar variáveis para o PGPASSWORD
     export PGHOST=$DB_HOST
@@ -37,37 +58,50 @@ if [[ $DATABASE_URL =~ postgres(ql)?://([^:]+):([^@]+)@([^:]+):([^/]+)/(.+) ]]; 
     export PGUSER=$DB_USER
     export PGPASSWORD=$DB_PASS
 else
-    echo "WARNING: Could not parse DATABASE_URL, using it as is"
-    # Tentar extrair informações de forma mais simples
+    echo "  Não foi possível analisar a DATABASE_URL, usando como está"
     export PGDATABASE=$(echo $DATABASE_URL | grep -oP '\/[^/]+$' | cut -d'/' -f2)
 fi
 
 # Aguardar até que o PostgreSQL esteja disponível
-echo "Checking PostgreSQL connection..."
+echo " Aguardando o PostgreSQL ficar disponível..."
 MAX_RETRIES=30
 RETRIES=0
 
 until pg_isready -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE" || [ $RETRIES -eq $MAX_RETRIES ]; do
-    echo "Waiting for PostgreSQL to be available... ${RETRIES}/${MAX_RETRIES}"
     RETRIES=$((RETRIES+1))
+    echo "   Tentativa $RETRIES de $MAX_RETRIES..."
     sleep 2
 done
 
 if [ $RETRIES -eq $MAX_RETRIES ]; then
-    echo "ERROR: Failed to connect to PostgreSQL after $MAX_RETRIES attempts"
-    echo "PGHOST: $PGHOST"
-    echo "PGPORT: $PGPORT"
-    echo "PGDATABASE: $PGDATABASE"
-    echo "PGUSER: $PGUSER"
+    echo " Não foi possível conectar ao PostgreSQL após $MAX_RETRIES tentativas"
+    echo "   Verifique suas credenciais e se o servidor está acessível"
     exit 1
 fi
 
-echo "PostgreSQL is available!"
+echo " PostgreSQL está disponível!"
 
-# Executar migrações do banco de dados
-echo "Running database migrations..."
-python -m alembic upgrade head
+# Executar migrações do Alembic
+echo "\n Executando migrações do banco de dados..."
+alembic upgrade head
+
+# Instalar dependências se não estiverem instaladas
+echo "\n Verificando dependências Python..."
+pip install -q -r requirements.txt
 
 # Iniciar a aplicação
-echo "Starting application..."
-exec gunicorn main:app -c gunicorn_config.py
+echo "\n Iniciando a aplicação..."
+echo "   Host: $HOST"
+echo "   Porta: $PORT"
+echo "   Ambiente: $ENVIRONMENT"
+echo "   Debug: $DEBUG"
+
+exec gunicorn \
+    --bind "$HOST:$PORT" \
+    --workers 4 \
+    --worker-class uvicorn.workers.UvicornWorker \
+    --timeout 120 \
+    --access-logfile - \
+    --error-logfile - \
+    --log-level info \
+    main:app
