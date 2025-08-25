@@ -1,42 +1,55 @@
 from pydantic_settings import BaseSettings
-from typing import List
+from typing import List, Optional
 import os
+from functools import lru_cache
 
 class Settings(BaseSettings):
     # Configurações da Aplicação
     APP_NAME: str = "PDV System Backend"
     API_V1_STR: str = "/api/v1"
-    DEBUG: bool = True
-    ENVIRONMENT: str = "development"
+    DEBUG: bool = False
+    ENVIRONMENT: str = "production"
     
     # Configurações do Banco de Dados
-    DATABASE_URL: str = "postgresql://postgres:123456@localhost:5432/pdv_system"
+    DATABASE_URL: str
+    DATABASE_INTERNAL_URL: Optional[str] = None
     
     # Configurações de Segurança
-    SECRET_KEY: str = "sua-chave-secreta-muito-segura-aqui-2024"
+    SECRET_KEY: str
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
     
     # Configurações de CORS
-    ALLOWED_ORIGINS: List[str] = [
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173",
-        # Adicione aqui os domínios de produção
-        "https://seu-frontend-dominio.com",
-        "https://www.seu-frontend-dominio.com"
-    ]
+    ALLOWED_ORIGINS: List[str] = ["*"]
     
-    # Configurações de Email (futuro)
-    SMTP_HOST: str = "smtp.gmail.com"
+    # Configurações de Email (opcional)
+    SMTP_HOST: Optional[str] = None
     SMTP_PORT: int = 587
-    SMTP_USER: str = ""
-    SMTP_PASSWORD: str = ""
+    SMTP_USER: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    
+    # Configurações do Servidor
+    HOST: str = "0.0.0.0"
+    PORT: int = 8000
     
     class Config:
-        env_file = ".env" if os.getenv("ENVIRONMENT", "development") == "development" else ".env.production"
+        env_file = ".env"
         case_sensitive = True
+        
+        @classmethod
+        def parse_env_var(cls, field_name: str, raw_val: str):
+            if field_name == 'ALLOWED_ORIGINS':
+                if not raw_val:
+                    return []
+                if isinstance(raw_val, str):
+                    if raw_val.strip() == '"*"' or raw_val.strip() == "'*'":
+                        return ["*"]
+                    return [origin.strip() for origin in raw_val.split(",") if origin.strip()]
+            return cls.json_loads(raw_val)  # type: ignore
 
 # Instância global das configurações
-settings = Settings()
+@lru_cache()
+def get_settings() -> Settings:
+    return Settings()
+
+settings = get_settings()
