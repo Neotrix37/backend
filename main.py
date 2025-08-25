@@ -1,7 +1,13 @@
-from fastapi import FastAPI
+import os
+import logging
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.api_v1.api import api_router
+
+# Configuração de logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -9,6 +15,14 @@ app = FastAPI(
     description="Backend do Sistema PDV - API para gestão de produtos, funcionários e sincronização",
     openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
+
+# Middleware para log de requisições
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.info(f"Requisição recebida: {request.method} {request.url}")
+    response = await call_next(request)
+    logger.info(f"Resposta enviada: {response.status_code}")
+    return response
 
 # Configuração CORS
 app.add_middleware(
@@ -37,10 +51,12 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
+    port = int(os.environ.get("PORT", 8000))
+    logger.info(f"Iniciando aplicação na porta {port}")
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=8000,
-        reload=True,
+        port=port,
+        reload=False,
         log_level="info"
-    ) 
+    )

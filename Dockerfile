@@ -5,7 +5,8 @@ WORKDIR /app
 # Definir variáveis de ambiente
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app
+    PYTHONPATH=/app \
+    PORT=8000
 
 # Instalar dependências do sistema
 RUN apt-get update && apt-get install -y \
@@ -29,7 +30,7 @@ COPY . .
 RUN mkdir -p logs
 
 # Expor a porta que a aplicação usa
-EXPOSE 8000
+EXPOSE $PORT
 
 # Comando para iniciar a aplicação em produção usando Gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "--worker-class", "uvicorn.workers.UvicornWorker", "main:app"]
+CMD ["sh", "-c", "echo 'Iniciando aplicação na porta $PORT' && gunicorn --bind 0.0.0.0:$PORT --workers 2 --worker-class uvicorn.workers.UvicornWorker main:app"]
