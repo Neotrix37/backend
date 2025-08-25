@@ -18,7 +18,7 @@ app = FastAPI(
 # Configurar CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allowed_origins_list,
+    allow_origins=["*"],  # Permitir todas as origens temporariamente
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -32,7 +32,16 @@ try:
     # Rota de health check
     @app.get("/health")
     async def health_check():
-        return {"status": "ok", "service": settings.PROJECT_NAME}
+        return {"status": "ok", "service": settings.PROJECT_NAME, "routes": [
+            {"path": "/api/v1/auth/", "methods": ["POST"], "description": "Autenticação de usuário"},
+            {"path": "/api/v1/products/", "methods": ["GET", "POST"], "description": "Gerenciamento de produtos"},
+            {"path": "/api/v1/categories/", "methods": ["GET", "POST"], "description": "Gerenciamento de categorias"},
+            {"path": "/api/v1/sales/", "methods": ["GET", "POST"], "description": "Gerenciamento de vendas"},
+            {"path": "/api/v1/customers/", "methods": ["GET", "POST"], "description": "Gerenciamento de clientes"},
+            {"path": "/api/v1/employees/", "methods": ["GET", "POST"], "description": "Gerenciamento de funcionários"},
+            {"path": "/api/v1/inventory/", "methods": ["GET", "POST"], "description": "Gerenciamento de estoque"},
+            {"path": "/api/v1/users/", "methods": ["GET", "POST"], "description": "Gerenciamento de usuários"},
+        ]}
         
 except ImportError as e:
     print(f"Aviso: Não foi possível carregar as rotas da API: {e}")

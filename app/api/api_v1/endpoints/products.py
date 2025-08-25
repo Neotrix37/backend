@@ -125,3 +125,6 @@ async def get_product_stock(product_id: int, db: Session = Depends(get_db)) -> A
 		"max_stock": product.max_stock,
 		"stock_status": "low" if product.current_stock <= product.min_stock else "ok",
 	}
+
+# Exportar o router
+__all__ = ["router"]
