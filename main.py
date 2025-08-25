@@ -42,16 +42,37 @@ try:
             "docs": "/docs"
         }
     
-    # Rota de saúde simplificada
-    @app.get("/health", status_code=200)
+    # Rota de saúde robusta
+    @app.get("/health", status_code=200, tags=["health"])
     async def health_check():
-        return {
-            "status": "healthy",
-            "service": settings.APP_NAME,
-            "environment": settings.ENVIRONMENT,
-            "version": "1.0.0",
-            "timestamp": datetime.utcnow().isoformat()
-        }
+        try:
+            # Verificar conexão com o banco de dados
+            from sqlalchemy import text
+            from app.db.session import SessionLocal
+            
+            db = SessionLocal()
+            db.execute(text("SELECT 1"))
+            db.close()
+            
+            return {
+                "status": "healthy",
+                "service": settings.APP_NAME,
+                "version": "1.0.0",
+                "environment": settings.ENVIRONMENT,
+                "database": "connected",
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail={
+                    "status": "unhealthy",
+                    "error": str(e),
+                    "service": settings.APP_NAME,
+                    "environment": settings.ENVIRONMENT,
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            )
     
     print("✅ Aplicação configurada com sucesso!")
     

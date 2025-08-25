@@ -3,18 +3,26 @@ builder = "nixpacks"
 
 [deploy]
 startCommand = "bash start.sh"
-healthcheckPath = "/health"
-healthcheckTimeout = 30
 
 [build.environment]
 NODE_VERSION = "18.x"
-PYTHON_VERSION = "3.11.0"
+PYTHON_VERSION = "3.11"
 
 [[services]]
 name = "web"
 port = 8000
 
+[services]
+  [services.healthcheck]
+  timeout = 60
+  interval = 60
+  start_period = 30
+  retries = 3
+  path = "/health"
+  success_threshold = 1
+  failure_threshold = 3
+
 [healthcheck]
-timeout = 30
+timeout = 60
 interval = 30
 retries = 3

@@ -116,12 +116,19 @@ alembic upgrade head
 echo "\n Verificando dependências Python..."
 pip install -q -r requirements.txt
 
-# Iniciar a aplicação
-echo "\n Iniciando a aplicação..."
+echo " Iniciando aplicação..."
 echo "   Host: $HOST"
 echo "   Porta: $PORT"
 echo "   Ambiente: $ENVIRONMENT"
 echo "   Debug: $DEBUG"
 
 # Iniciar o Gunicorn com as configurações
-exec uvicorn main:app --host $HOST --port $PORT --reload
+exec gunicorn \
+    --bind "0.0.0.0:${PORT:-8000}" \
+    --workers 2 \
+    --worker-class uvicorn.workers.UvicornWorker \
+    --timeout 30 \
+    --access-logfile - \
+    --error-logfile - \
+    --log-level info \
+    main:app

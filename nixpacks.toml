@@ -1,14 +1,24 @@
 [phases.setup]
-nixPkgs = ['python311', 'python311Packages.pip', 'python311Packages.virtualenv']
+nixPkgs = ['python311', 'python311Packages.pip', 'python311Packages.virtualenv', 'postgresql']
 
 [phases.install]
 cmds = [
+    "pip install --upgrade pip",
     "pip install -r requirements.txt"
 ]
 
 [phases.build]
 cmds = [
-    "echo 'Build concluído!'"]
+    "echo 'Build concluído!'"
+]
 
 [start]
 cmd = "bash start.sh"
+
+[build.args]
+PYTHON_VERSION = "3.11"
+NODE_VERSION = "18.x"
+
+[build.environment]
+PYTHONUNBUFFERED = "1"
+PYTHONHASHSEED = "random"
