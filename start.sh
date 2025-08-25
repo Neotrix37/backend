@@ -6,25 +6,7 @@ echo " Iniciando configuração da aplicação..."
 # Carregar variáveis de ambiente do arquivo .env.production se existir
 if [ -f ".env.production" ]; then
     echo " Carregando variáveis de ambiente de .env.production..."
-    # Carregar apenas linhas válidas de variáveis de ambiente
-    while IFS= read -r line || [ -n "$line" ]; do
-        # Pular linhas vazias e comentários
-        if [ -z "$line" ] || [[ "$line" =~ ^[[:space:]]*# ]]; then
-            continue
-        fi
-        # Extrair chave e valor (tratando valores com =)
-        key=$(echo "$line" | cut -d '=' -f1)
-        value=$(echo "$line" | cut -d '=' -f2-)
-        
-        # Remover aspas se existirem
-        value=${value%\"}
-        value=${value#\`}
-        value=${value%\"}
-        value=${value#\`}
-        
-        # Exportar a variável
-        export "$key"="$value"
-    done < ".env.production"
+    export $(grep -v '^#' .env.production | xargs)
 fi
 
 # Configurações padrão
@@ -107,32 +89,13 @@ else
     export PGDATABASE=$(echo $DATABASE_URL | grep -oP '\/[^/]+$' | cut -d'/' -f2)
 fi
 
-# Aguardar até que o PostgreSQL esteja disponível
-echo " Aguardando o PostgreSQL ficar disponível..."
-MAX_RETRIES=30
-RETRIES=0
-
-until pg_isready -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE" || [ $RETRIES -eq $MAX_RETRIES ]; do
-    RETRIES=$((RETRIES+1))
-    echo "   Tentativa $RETRIES de $MAX_RETRIES..."
-    sleep 2
-done
-
-if [ $RETRIES -eq $MAX_RETRIES ]; then
-    echo " Não foi possível conectar ao PostgreSQL após $MAX_RETRIES tentativas"
-    echo "   Verifique suas credenciais e se o servidor está acessível"
-    exit 1
-fi
-
-echo " PostgreSQL está disponível!"
+# Instalar dependências se não estiverem instaladas
+echo "\n Verificando dependências Python..."
+pip install -q -r requirements.txt
 
 # Executar migrações do Alembic
 echo "\n Executando migrações do banco de dados..."
 alembic upgrade head || echo " ⚠️  Aviso: Falha ao executar migrações. Continuando..."
-
-# Instalar dependências se não estiverem instaladas
-echo "\n Verificando dependências Python..."
-pip install -q -r requirements.txt
 
 echo " Iniciando aplicação..."
 echo "   Host: $HOST"
