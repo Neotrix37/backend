@@ -1,6 +1,10 @@
 from pydantic_settings import BaseSettings
 from typing import List, Optional
 import os
+from dotenv import load_dotenv
+
+# Carrega as variáveis de ambiente do arquivo .env
+load_dotenv()
 
 class Settings(BaseSettings):
     # Configurações da Aplicação
@@ -10,7 +14,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "production")
     
     # Configurações do Banco de Dados
-    DATABASE_URL: Optional[str] = os.getenv("DATABASE_URL")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
     
     # Validação da URL do banco de dados
     if not DATABASE_URL:
@@ -35,14 +39,7 @@ class Settings(BaseSettings):
         "https://*.up.railway.app"
     ]
     
-    # Configurações de Email (futuro)
-    SMTP_HOST: str = "smtp.gmail.com"
-    SMTP_PORT: int = 587
-    SMTP_USER: str = ""
-    SMTP_PASSWORD: str = ""
-    
     class Config:
-        env_file = ".env"
         case_sensitive = True
 
 # Instância global das configurações

@@ -1,9 +1,13 @@
 import os
 import logging
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.api_v1.api import api_router
+
+# Carrega as variáveis de ambiente do arquivo .env
+load_dotenv()
 
 # Configuração de logging
 logging.basicConfig(level=logging.INFO)
