@@ -1,25 +1,29 @@
 from pydantic_settings import BaseSettings
-from typing import List
+from typing import List, Optional
 import os
 
 class Settings(BaseSettings):
     # Configurações da Aplicação
     APP_NAME: str = "PDV System Backend"
     API_V1_STR: str = "/api/v1"
-    DEBUG: bool = True
-    ENVIRONMENT: str = "production"  # Alterado para produção
+    DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
+    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "production")
     
     # Configurações do Banco de Dados
-    DATABASE_URL: str = os.environ["DATABASE_URL"]  # Agora é obrigatório
+    DATABASE_URL: Optional[str] = os.getenv("DATABASE_URL")
     
+    # Validação da URL do banco de dados
+    if not DATABASE_URL:
+        raise ValueError("A variável de ambiente DATABASE_URL não está definida")
+        
     # Garante que a URL do banco de dados use o formato correto para SQLAlchemy
     if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
         DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
     
     # Configurações de Segurança
-    SECRET_KEY: str = os.environ.get("SECRET_KEY", "sua-chave-secreta-muito-segura-aqui-2024")
-    ALGORITHM: str = os.environ.get("ALGORITHM", "HS256")
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "sua-chave-secreta-muito-segura-aqui-2024")
+    ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
     
     # Configurações de CORS
     ALLOWED_ORIGINS: List[str] = [
@@ -42,4 +46,8 @@ class Settings(BaseSettings):
         case_sensitive = True
 
 # Instância global das configurações
-settings = Settings()
+try:
+    settings = Settings()
+except ValueError as e:
+    print(f"Erro de configuração: {e}")
+    raise
