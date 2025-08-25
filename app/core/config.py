@@ -61,7 +61,7 @@ class Settings(BaseSettings):
     def validate_smtp_port(cls, v):
         if v is None or v == '':
             return "587"
-        # Converte para string se for número
+        # Garante que o valor seja tratado como string
         return str(v)
     
     class Config:

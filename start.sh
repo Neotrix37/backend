@@ -6,8 +6,14 @@ echo " Iniciando configuração da aplicação..."
 # Carregar variáveis de ambiente do arquivo .env.production se existir
 if [ -f ".env.production" ]; then
     echo " Carregando variáveis de ambiente de .env.production..."
-    # Remover aspas das variáveis de ambiente
-    export $(grep -v '^#' .env.production | xargs | sed 's/"//g')
+    # Remover linhas de comentário e exportar variáveis
+    while IFS= read -r line || [ -n "$line" ]; do
+        # Pular linhas vazias e comentários
+        if [[ "$line" =~ ^[^#]*= && ! "$line" =~ ^[[:space:]]*# ]]; then
+            # Remover espaços em branco extras e exportar
+            export "$(echo "$line" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+        fi
+    done < .env.production
 fi
 
 # Configurações padrão
