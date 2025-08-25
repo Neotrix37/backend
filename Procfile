@@ -1,1 +1,1 @@
-web: pip install -r requirements.txt && bash start.sh
+web: ./start.sh
