@@ -1,9 +1,8 @@
 # PDV System Backend 
-from .models.base import Base
-from .core.database import engine, SessionLocal
+from .core.database import Base, SessionLocal, engine, get_db
 
 # This will make db available when importing from app
 from .core import database as db
 
-# This will be imported by FastAPI
-__all__ = ['Base', 'SessionLocal', 'engine']
+# Exporta os componentes principais
+__all__ = ['Base', 'SessionLocal', 'engine', 'get_db']
