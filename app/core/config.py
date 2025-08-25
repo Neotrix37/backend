@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     
     # Configurações de Email (opcionais com valores padrão)
     SMTP_HOST: str = ""
-    SMTP_PORT: str = "587"
+    SMTP_PORT: str = "587"  # Mantendo como string para compatibilidade
     SMTP_USER: str = ""
     SMTP_PASSWORD: str = ""
     
@@ -60,11 +60,9 @@ class Settings(BaseSettings):
     @classmethod
     def validate_smtp_port(cls, v):
         if v is None or v == '':
-            return 587
-        try:
-            return int(v)
-        except (ValueError, TypeError):
-            return 587
+            return "587"
+        # Converte para string se for número
+        return str(v)
     
     class Config:
         env_file = ".env"
