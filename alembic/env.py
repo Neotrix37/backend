@@ -1,8 +1,6 @@
 from logging.config import fileConfig
-
-from sqlalchemy import engine_from_config
+from sqlalchemy import create_engine
 from sqlalchemy import pool
-
 from alembic import context
 import os
 import sys
@@ -10,23 +8,29 @@ import sys
 # Adiciona o diretório raiz ao path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# this is the Alembic Config object, which provides
-# access to the values within the .ini file in use.
+# Carrega as variáveis de ambiente
+from dotenv import load_dotenv
+load_dotenv()
+
+# Configuração do Alembic
 config = context.config
 
-# Interpret the config file for Python logging.
+# Configura o logging
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Importa o Base do diretório correto
-from app.models.base import Base
+from app.core.database import Base
 
 # Configura o target_metadata para o alembic
 target_metadata = Base.metadata
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
-    url = config.get_main_option("sqlalchemy.url")
+    url = os.getenv("DATABASE_URL")
+    if not url:
+        raise ValueError("DATABASE_URL não configurada nas variáveis de ambiente")
+        
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -39,11 +43,11 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
-    connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
+    database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL não configurada nas variáveis de ambiente")
+    
+    connectable = create_engine(database_url, poolclass=pool.NullPool)
 
     with connectable.connect() as connection:
         context.configure(
