@@ -10,7 +10,10 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     
     # Configurações do Banco de Dados
-    DATABASE_URL: str = "postgresql://postgres:123456@localhost:5432/pdv_system"
+    DATABASE_URL: str = os.environ.get("DATABASE_URL", "postgresql://postgres:123456@localhost:5432/pdv_system")
+    # Garante que a URL do banco de dados use o formato correto para SQLAlchemy
+    if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
+        DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
     
     # Configurações de Segurança
     SECRET_KEY: str = "sua-chave-secreta-muito-segura-aqui-2024"
