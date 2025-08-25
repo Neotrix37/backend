@@ -1,0 +1,14 @@
+[phases.setup]
+nixPkgs = ['python311', 'python311Packages.pip', 'python311Packages.virtualenv']
+
+[phases.install]
+cmds = [
+    "pip install -r requirements.txt"
+]
+
+[phases.build]
+cmds = [
+    "echo 'Build concluído!'"]
+
+[start]
+cmd = "bash start.sh"

@@ -2,13 +2,13 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "./start.sh"
+startCommand = "bash start.sh"
 healthcheckPath = "/health"
 healthcheckTimeout = 30
 
 [build.environment]
 NODE_VERSION = "18.x"
-PYTHON_VERSION = "3.11"
+PYTHON_VERSION = "3.11.0"
 
 [[services]]
 name = "web"
