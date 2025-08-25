@@ -1,5 +1,5 @@
 import os
-from pydantic import field_validator
+from pydantic import field_validator, ConfigDict
 from pydantic_settings import BaseSettings
 from typing import List, Optional, Union
 from functools import lru_cache
@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7    # 7 dias
     
     # Configurações de CORS
-    BACKEND_CORS_ORIGINS: List[str] = ["*"]
+    ALLOWED_ORIGINS: str = "*"
     
     # Configurações do Servidor
     HOST: str = os.getenv("HOST", "0.0.0.0")
@@ -36,19 +36,20 @@ class Settings(BaseSettings):
     # Configurações de Rate Limiting
     RATE_LIMIT: str = "100/minute"
     
-    class Config:
-        case_sensitive = True
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    model_config = ConfigDict(
+        extra="ignore",  # Ignora campos extras que não estão definidos
+        case_sensitive=True,
+        env_file=".env",
+        env_file_encoding="utf-8"
+    )
     
-    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
-    @classmethod
-    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
-        if isinstance(v, str) and not v.startswith("["):
-            return [i.strip() for i in v.split(",")]
-        elif isinstance(v, (list, str)):
-            return v
-        raise ValueError(v)
+    @property
+    def allowed_origins_list(self) -> List[str]:
+        if not self.ALLOWED_ORIGINS or self.ALLOWED_ORIGINS.strip() == "":
+            return []
+        if self.ALLOWED_ORIGINS.strip() == "*":
+            return ["*"]
+        return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",") if origin.strip()]
 
 @lru_cache()
 def get_settings() -> Settings:
