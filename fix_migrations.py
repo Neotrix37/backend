@@ -1,3 +1,7 @@
+#!/usr/bin/env python3
+"""
+Script para corrigir o problema de múltiplas heads no Alembic.
+"""
 import os
 import sys
 from alembic.config import Config
@@ -7,13 +11,27 @@ def fix_migrations():
     # Configuração do Alembic
     alembic_cfg = Config("alembic.ini")
     
-    # 1. Marcar todas as migrações como head
-    command.heads(alembic_cfg, "heads", verbose=True)
+    print("🔍 Verificando migrações...")
     
-    # 2. Forçar o upgrade para a última migração
-    command.upgrade(alembic_cfg, "heads")
+    # Listar todas as revisões
+    print("\n📋 Revisões disponíveis:")
+    command.heads(alembic_cfg)
+    
+    # Obter todas as heads
+    script = command.revision(alembic_cfg, rev_id="fix_heads", head="heads", splice=True)
+    
+    print("\n🔄 Criando migração de correção...")
+    command.revision(alembic_cfg, autogenerate=True, message="Fix multiple heads")
+    
+    # Aplicar as migrações
+    print("\n🔄 Aplicando migrações...")
+    command.upgrade(alembic_cfg, "head")
     
     print("\n✅ Migrações corrigidas com sucesso!")
 
 if __name__ == "__main__":
-    fix_migrations()
+    try:
+        fix_migrations()
+    except Exception as e:
+        print(f"❌ Erro ao corrigir migrações: {e}", file=sys.stderr)
+        sys.exit(1)

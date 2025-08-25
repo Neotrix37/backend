@@ -294,6 +294,3 @@ async def change_password(
     db.commit()
     
     return {"message": "Senha alterada com sucesso"}
-
-# Exportar o router
-__all__ = ["router"]

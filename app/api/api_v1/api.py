@@ -1,7 +1,6 @@
 from fastapi import APIRouter
 from .endpoints import auth, products, categories, sales, customers, employees, inventory, users
 
-# Criar o roteador principal da API
 api_router = APIRouter()
 
 # Incluir todas as rotas da API
@@ -13,6 +12,3 @@ api_router.include_router(customers.router, prefix="/customers", tags=["customer
 api_router.include_router(employees.router, prefix="/employees", tags=["employees"])
 api_router.include_router(inventory.router, prefix="/inventory", tags=["inventory"])
 api_router.include_router(users.router, prefix="/users", tags=["users"])
-
-# Exportar o roteador
-__all__ = ["api_router"]
