@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = ""
     
     class Config:
-        env_file = ".env"
+        env_file = ".env" if os.getenv("ENVIRONMENT", "development") == "development" else ".env.production"
         case_sensitive = True
 
 # Instância global das configurações

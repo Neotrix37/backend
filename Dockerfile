@@ -23,5 +23,9 @@ RUN mkdir -p logs
 # Expor a porta que a aplicação usa
 EXPOSE 8000
 
-# Comando para iniciar a aplicação em produção usando Gunicorn
-CMD ["gunicorn", "main:app", "-c", "gunicorn_config.py"]
+# Adicionar script de inicialização
+COPY start.sh /app/start.sh
+RUN chmod +x /app/start.sh
+
+# Comando para iniciar a aplicação em produção
+CMD ["/app/start.sh"]
