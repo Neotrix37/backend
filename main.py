@@ -1,38 +1,22 @@
 import os
 import sys
-from fastapi import FastAPI, HTTPException, status, Request, Response
+from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
-from contextlib import asynccontextmanager
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 
 # Adicionar o diretório raiz ao path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Inicialização da aplicação
-    print(" Iniciando aplicação...")
-    yield
-    # Encerramento da aplicação
-    print(" Encerrando aplicação...")
-
 try:
     from app.core.config import settings
     from app.api.api_v1.api import api_router
-    from app.db.session import engine, Base
-    from app.core.middleware import SecurityHeadersMiddleware
     
     # Configuração inicial do FastAPI
     app = FastAPI(
         title=settings.APP_NAME,
         version="1.0.0",
         description="Backend do Sistema PDV - API para gestão de produtos, funcionários e sincronização",
-        openapi_url=f"{settings.API_V1_STR}/openapi.json",
-        docs_url="/docs",
-        redoc_url="/redoc",
-        lifespan=lifespan
+        openapi_url=f"{settings.API_V1_STR}/openapi.json"
     )
     
     # Configuração CORS
@@ -42,19 +26,7 @@ try:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
-        expose_headers=["X-Total-Count"]
     )
-    
-    # Middleware de headers de segurança
-    app.add_middleware(SecurityHeadersMiddleware)
-    
-    # Forçar HTTPS em produção
-    if not settings.DEBUG:
-        app.add_middleware(HTTPSRedirectMiddleware)
-        app.add_middleware(
-            TrustedHostMiddleware,
-            allowed_hosts=["*"],  # Em produção, substituir por domínios permitidos
-        )
     
     # Incluir rotas da API
     app.include_router(api_router, prefix=settings.API_V1_STR)
@@ -70,7 +42,7 @@ try:
             "docs": "/docs"
         }
     
-    # Rota de saúde
+    # Rota de saúde robusta
     @app.get("/health", status_code=200, tags=["health"])
     async def health_check():
         try:
@@ -102,10 +74,10 @@ try:
                 }
             )
     
-    print(" Aplicação configurada com sucesso!")
+    print("✅ Aplicação configurada com sucesso!")
     
 except ImportError as e:
-    print(f" Erro ao importar módulos: {str(e)}")
+    print(f"❌ Erro ao importar módulos: {str(e)}")
     print("Verifique se todos os módulos necessários estão instalados corretamente.")
     print("Execute: pip install -r requirements.txt")
     
@@ -123,17 +95,16 @@ except ImportError as e:
 if __name__ == "__main__":
     import uvicorn
     
-    print("\n Iniciando servidor...")
+    print("\n🚀 Iniciando servidor...")
     print(f"   Ambiente: {os.getenv('ENVIRONMENT', 'production')}")
     print(f"   Debug: {os.getenv('DEBUG', 'False')}")
-    print(f"   Acesse: http://{settings.HOST}:{settings.PORT}")
-    print(f"   Documentação: http://{settings.HOST}:{settings.PORT}/docs\n")
+    print(f"   Host: {os.getenv('HOST', '0.0.0.0')}")
+    print(f"   Porta: {os.getenv('PORT', '8000')}")
     
     uvicorn.run(
         "main:app",
-        host=settings.HOST,
-        port=settings.PORT,
-        reload=settings.DEBUG,
-        workers=1 if settings.DEBUG else 4,
-        log_level="debug" if settings.DEBUG else "info"
+        host=os.getenv('HOST', '0.0.0.0'),
+        port=int(os.getenv('PORT', '8000')),
+        reload=os.getenv('DEBUG', 'False').lower() == 'true',
+        log_level="info"
     )

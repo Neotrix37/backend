@@ -2,11 +2,6 @@ from sqlalchemy import Column, String, Boolean, Enum, Numeric
 from sqlalchemy.orm import relationship
 import enum
 from .base import BaseModel
-from datetime import datetime
-from typing import Optional
-from sqlalchemy import DateTime
-from sqlalchemy.dialects.postgresql import UUID
-import uuid
 
 class UserRole(str, enum.Enum):
     ADMIN = "admin"
@@ -25,7 +20,6 @@ class User(BaseModel):
     role = Column(Enum(UserRole), default=UserRole.VIEWER, nullable=False)
     is_superuser = Column(Boolean, default=False, nullable=False)
     salary = Column(Numeric(10, 2), nullable=True)
-    refresh_token = Column(String, nullable=True)
     
     # Relacionamentos
     sales = relationship("Sale", back_populates="user")
