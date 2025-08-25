@@ -60,13 +60,31 @@ echo "\n Verificando conexão com o PostgreSQL..."
 
 # Verificar se a variável DATABASE_URL está definida
 if [ -z "$DATABASE_URL" ]; then
-    echo " ERRO: DATABASE_URL não está definida"
-    echo "Variáveis de ambiente disponíveis:"
-    env | sort
-    exit 1
+    echo " 🔍 Verificando configuração do banco de dados..."
+    echo " ⚠️  ATENÇÃO: DATABASE_URL não está definida"
+    
+    # Tentar usar a variável interna do Railway
+    if [ -n "$RAILWAY_POSTGRESQL_URL" ]; then
+        echo " ℹ️  Usando RAILWAY_POSTGRESQL_URL para conexão com o banco de dados"
+        export DATABASE_URL="$RAILWAY_POSTGRESQL_URL"
+    elif [ -n "$DATABASE_URL_INTERNAL" ]; then
+        echo " ℹ️  Usando DATABASE_URL_INTERNAL para conexão com o banco de dados"
+        export DATABASE_URL="$DATABASE_URL_INTERNAL"
+    else
+        echo " ❌ ERRO: Nenhuma configuração de banco de dados encontrada"
+        echo " ℹ️  Certifique-se de que o plugin PostgreSQL está adicionado ao seu projeto no Railway"
+        echo " ℹ️  Variáveis de ambiente disponíveis:"
+        env | sort
+        exit 1
+    fi
 fi
 
-echo " Usando DATABASE_URL: ${DATABASE_URL//:*/:*****}"
+echo " 🔧 Configurações carregadas:"
+echo "- ENVIRONMENT: ${ENVIRONMENT}"
+echo "- HOST: ${HOST}"
+echo "- PORT: ${PORT}"
+echo "- DEBUG: ${DEBUG}"
+echo "- DATABASE_URL: ${DATABASE_URL:0:30}..."
 
 # Extrair informações de conexão da variável DATABASE_URL
 if [[ $DATABASE_URL =~ postgres(ql)?://([^:]+):([^@]+)@([^:]+):([^/]+)/(.+) ]]; then
@@ -110,7 +128,7 @@ echo " PostgreSQL está disponível!"
 
 # Executar migrações do Alembic
 echo "\n Executando migrações do banco de dados..."
-alembic upgrade head
+alembic upgrade head || echo " ⚠️  Aviso: Falha ao executar migrações. Continuando..."
 
 # Instalar dependências se não estiverem instaladas
 echo "\n Verificando dependências Python..."
