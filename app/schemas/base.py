@@ -1,29 +1,26 @@
-from pydantic import BaseModel, Field
-from typing import Optional, TypeVar, Generic, Any
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime
-
-T = TypeVar('T')
+from typing import Optional
 
 class BaseSchema(BaseModel):
     """Schema base com configurações comuns"""
-    class Config:
-        from_attributes = True
-        json_encoders = {
-            'decimal.Decimal': str,  # Convert Decimal to string in JSON
-            'datetime': lambda v: v.isoformat()  # Format datetime as ISO string
-        }
+    model_config = ConfigDict(
+        from_attributes=True,
+        str_strip_whitespace=True,
+        validate_assignment=True
+    )
 
 class BaseResponse(BaseSchema):
-    """Base response model with common fields"""
-    id: int = Field(..., description="Unique identifier")
-    is_active: bool = Field(True, description="Whether the record is active")
-    created_at: datetime = Field(..., description="Creation timestamp")
-    updated_at: datetime = Field(..., description="Last update timestamp")
+    """Schema base para respostas"""
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    is_active: bool
 
 class BaseCreate(BaseSchema):
-    """Base model for creating new records"""
-    is_active: bool = Field(True, description="Whether the record should be active")
+    """Schema base para criação"""
+    pass
 
 class BaseUpdate(BaseSchema):
-    """Base model for updating existing records"""
-    is_active: Optional[bool] = Field(None, description="Set active/inactive status")
+    """Schema base para atualização"""
+    pass
