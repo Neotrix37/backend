@@ -6,7 +6,8 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app \
-    PORT=8000
+    PORT=8000 \
+    GUNICORN_CMD_ARGS="--timeout 120 --keep-alive 5 --access-logfile - --error-logfile -"
 
 # Instalar dependências do sistema
 RUN apt-get update && apt-get install -y \
@@ -32,15 +33,9 @@ RUN mkdir -p logs
 # Expor a porta que a aplicação usa
 EXPOSE $PORT
 
-# Comando para iniciar a aplicação em produção usando Gunicorn
-CMD echo "Aplicando migrações do banco de dados..." && \
-    alembic upgrade head && \
-    echo "Iniciando aplicação na porta $PORT..." && \
-    gunicorn --bind 0.0.0.0:$PORT \
-             --workers 2 \
-             --worker-class uvicorn.workers.UvicornWorker \
-             --access-logfile - \
-             --error-logfile - \
-             --timeout 120 \
-             --keep-alive 5 \
-             main:app
+# Script de inicialização
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Comando para iniciar a aplicação
+CMD ["/entrypoint.sh"]
