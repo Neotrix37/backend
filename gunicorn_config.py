@@ -15,7 +15,7 @@ bind = '0.0.0.0:' + str(int(os.environ.get('PORT', 8000)))
 timeout = 120
 
 # Configurações de log - redirecionando para stdout/stderr para o Railway
-autoreload = True
+autoreload = False  # Desativado para produção
 accesslog = '-'
 errorlog = '-'
 loglevel = 'info'
