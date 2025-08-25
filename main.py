@@ -42,29 +42,14 @@ try:
             "docs": "/docs"
         }
     
-    # Rota de saúde aprimorada
+    # Rota de saúde simplificada
     @app.get("/health", status_code=200)
     async def health_check():
-        from fastapi import status
-        from fastapi.responses import JSONResponse
-        
-        # Verificar conexão com o banco de dados
-        db_status = "ok"
-        try:
-            from sqlalchemy import text
-            from app.db.session import SessionLocal
-            db = SessionLocal()
-            db.execute(text("SELECT 1"))
-            db.close()
-        except Exception as e:
-            db_status = f"error: {str(e)}"
-        
         return {
             "status": "healthy",
             "service": settings.APP_NAME,
             "environment": settings.ENVIRONMENT,
             "version": "1.0.0",
-            "database": db_status,
             "timestamp": datetime.utcnow().isoformat()
         }
     

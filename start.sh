@@ -6,12 +6,12 @@ echo " Iniciando configuração da aplicação..."
 # Carregar variáveis de ambiente do arquivo .env.production se existir
 if [ -f ".env.production" ]; then
     echo " Carregando variáveis de ambiente de .env.production..."
-    # Remover linhas de comentário e exportar variáveis
+    # Carregar apenas linhas válidas de variáveis de ambiente
     while IFS= read -r line || [ -n "$line" ]; do
-        # Pular linhas vazias e comentários
+        # Ignorar linhas vazias, comentários e linhas sem sinal de igual
         if [[ "$line" =~ ^[^#]*= && ! "$line" =~ ^[[:space:]]*# ]]; then
             # Remover espaços em branco extras e exportar
-            export "$(echo "$line" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+            export "$(echo "$line" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/"//g' -e "s/'//g")"
         fi
     done < .env.production
 fi
@@ -24,6 +24,16 @@ fi
 
 echo " Ambiente: $ENVIRONMENT"
 echo " Modo Debug: $DEBUG"
+
+# Verificar se a porta está disponível
+if ! command -v lsof &> /dev/null || ! lsof -i :"$PORT" > /dev/null; then
+    echo " Porta $PORT está disponível"
+else
+    echo "  Aviso: A porta $PORT já está em uso"
+    echo "Tentando encontrar uma porta disponível..."
+    PORT=$(($PORT + 1))
+    echo "Usando a porta alternativa: $PORT"
+fi
 
 echo "\n Verificando dependências..."
 
@@ -102,11 +112,12 @@ echo "   Porta: $PORT"
 echo "   Ambiente: $ENVIRONMENT"
 echo "   Debug: $DEBUG"
 
+# Iniciar o Gunicorn com as configurações
 exec gunicorn \
     --bind "$HOST:$PORT" \
-    --workers 4 \
+    --workers 2 \
     --worker-class uvicorn.workers.UvicornWorker \
-    --timeout 120 \
+    --timeout 30 \
     --access-logfile - \
     --error-logfile - \
     --log-level info \
