@@ -1,1 +1,1 @@
-web: gunicorn -c gunicorn_config.py main:app
+web: gunicorn --bind 0.0.0.0:$PORT --workers 2 --worker-class uvicorn.workers.UvicornWorker main:app
