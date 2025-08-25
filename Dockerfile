@@ -33,4 +33,8 @@ RUN mkdir -p logs
 EXPOSE $PORT
 
 # Comando para iniciar a aplicação em produção usando Gunicorn
-CMD ["sh", "-c", "echo 'Iniciando aplicação na porta $PORT' && gunicorn --bind 0.0.0.0:$PORT --workers 2 --worker-class uvicorn.workers.UvicornWorker main:app"]
+CMD ["sh", "-c", "\
+    echo 'Aplicando migrações do banco de dados...' && \
+    alembic upgrade head && \
+    echo 'Iniciando aplicação...' && \
+    gunicorn --bind 0.0.0.0:$PORT --workers 2 --worker-class uvicorn.workers.UvicornWorker main:app"]
