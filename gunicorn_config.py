@@ -1,18 +1,14 @@
 # Configuração otimizada do Gunicorn para o Railway
 import os
 import multiprocessing
-from dotenv import load_dotenv
-
-# Carregar variáveis de ambiente
-load_dotenv('.env.production')
 
 # Configurações básicas
-bind = f"0.0.0.0:{os.getenv('PORT', '8000')}"
-workers = min(multiprocessing.cpu_count() * 2 + 1, 4)  # Máximo de 4 workers
+bind = "0.0.0.0:8000"
+workers = 2  # Reduzido para 2 workers para economizar recursos
 worker_class = 'uvicorn.workers.UvicornWorker'
 
 # Timeout e keepalive
-timeout = 120
+timeout = 30  # Reduzido para 30 segundos
 keepalive = 2
 
 # Configurações de log
@@ -35,7 +31,7 @@ limit_request_fields = 100
 limit_request_field_size = 8190
 
 # Configurações adicionais para o Railway
-preload_app = True  # Carrega a aplicação antes de forking
+preload_app = True  # Carrega a aplicação antes de forkar os workers
 reload = os.getenv('DEBUG', 'False').lower() == 'true'
 
 # Configuração de workers
