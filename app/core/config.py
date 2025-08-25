@@ -1,33 +1,21 @@
 from pydantic_settings import BaseSettings
-from typing import List, Optional
+from typing import List
 import os
-from dotenv import load_dotenv
-
-# Carrega as variáveis de ambiente do arquivo .env
-load_dotenv()
 
 class Settings(BaseSettings):
     # Configurações da Aplicação
     APP_NAME: str = "PDV System Backend"
     API_V1_STR: str = "/api/v1"
-    DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
-    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "production")
+    DEBUG: bool = True
+    ENVIRONMENT: str = "development"
     
     # Configurações do Banco de Dados
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
-    
-    # Validação da URL do banco de dados
-    if not DATABASE_URL:
-        raise ValueError("A variável de ambiente DATABASE_URL não está definida")
-        
-    # Garante que a URL do banco de dados use o formato correto para SQLAlchemy
-    if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
-        DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+    DATABASE_URL: str = "postgresql://postgres:123456@localhost:5432/pdv_system"
     
     # Configurações de Segurança
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "sua-chave-secreta-muito-segura-aqui-2024")
-    ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+    SECRET_KEY: str = "sua-chave-secreta-muito-segura-aqui-2024"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
     # Configurações de CORS
     ALLOWED_ORIGINS: List[str] = [
@@ -35,16 +23,20 @@ class Settings(BaseSettings):
         "http://localhost:5173",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:5173",
-        "https://backend-production-046c.up.railway.app",
-        "https://*.up.railway.app"
+        # Adicione aqui os domínios de produção
+        "https://seu-frontend-dominio.com",
+        "https://www.seu-frontend-dominio.com"
     ]
     
+    # Configurações de Email (futuro)
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    
     class Config:
+        env_file = ".env"
         case_sensitive = True
 
 # Instância global das configurações
-try:
-    settings = Settings()
-except ValueError as e:
-    print(f"Erro de configuração: {e}")
-    raise
+settings = Settings()
