@@ -1,34 +1,34 @@
 [build]
-  builder = "nixpacks"
+builder = "nixpacks"
 
 [deploy]
-  startCommand = "./start.sh"
-  healthcheckPath = "/health"
-  healthcheckTimeout = 30
-  restartPolicyType = "on-failure"
-  restartPolicyMaxRetries = 3
+startCommand = "./start.sh"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "on-failure"
+restartPolicyMaxRetries = 3
 
 [build.environment]
-  NODE_VERSION = "18.x"
-  PYTHON_VERSION = "3.11"
+NODE_VERSION = "18.x"
+PYTHON_VERSION = "3.11"
 
-[build.install]
-  - pip install -r requirements.txt
-
-[build.build]
-  - pip install -r requirements.txt
-  - python -m pip install --upgrade pip
-
-[build.start]
-  - ./start.sh
+# Configurações adicionais para o Nixpacks
+[build.nixpacks]
+install = ["pip install -r requirements.txt"]
+build = ["python -m pip install --upgrade pip"]
+start = "./start.sh"
 
 [[services]]
-  name = "web"
-  internal_port = 8000
-  protocol = "http"
-  auto_deploy = true
+name = "web"
+port = 8000
+protocol = "tcp"
+internal = true
 
-  [services.concurrency]
-    type = "connections"
-    hard_limit = 1000
-    soft_limit = 800
+[[services.tcp]]
+port = 8000
+handlers = ["http"]
+
+[healthcheck]
+timeout = 30
+interval = 30
+retries = 3
