@@ -17,10 +17,10 @@ if [ -f ".env.production" ]; then
         value=$(echo "$line" | cut -d '=' -f2-)
         
         # Remover aspas se existirem
-        value=${value%"}"
-        value=${value#"}"}
-        value=${value%'"'}
-        value=${value#'"'}
+        value=${value%\"}
+        value=${value#\`}
+        value=${value%\"}
+        value=${value#\`}
         
         # Exportar a variável
         export "$key"="$value"
