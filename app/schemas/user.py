@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, validator
 from typing import Optional
 from decimal import Decimal
 from enum import Enum
@@ -10,49 +10,82 @@ class UserRole(str, Enum):
     CASHIER = "cashier"
     VIEWER = "viewer"
 
-class UserCreate(BaseCreate):
-    username: str = Field(..., min_length=3, max_length=50)
-    email: Optional[EmailStr] = None
-    password: str = Field(..., min_length=6)
-    full_name: str = Field(..., min_length=2, max_length=100)
-    role: UserRole = UserRole.VIEWER
-    is_superuser: bool = False
-    # Compatibilidade com desktop (Flet)
-    is_admin: Optional[bool] = False
-    salary: Optional[Decimal] = None
+class UserBase(BaseModel):
+    username: str = Field(..., min_length=3, max_length=50, description="Nome de usuário para login")
+    email: Optional[EmailStr] = Field(None, description="E-mail do usuário")
+    full_name: str = Field(..., min_length=2, max_length=100, description="Nome completo do usuário")
+    
+    # Permissões
+    role: UserRole = Field(UserRole.VIEWER, description="Nível de acesso do usuário")
+    is_active: bool = Field(True, description="Indica se o usuário está ativo")
+    can_supply: bool = Field(False, description="Pode abastecer produtos")
+    
+    # Compatibilidade com frontend
+    is_admin: Optional[bool] = Field(False, description="(Frontend) Indica se é administrador")
+    salary: Optional[Decimal] = Field(None, ge=0, description="Salário do usuário")
+    
+    class Config:
+        json_encoders = {
+            Decimal: lambda v: str(v) if v is not None else None
+        }
 
-class UserUpdate(BaseUpdate):
+class UserCreate(UserBase, BaseCreate):
+    """Schema para criação de usuário"""
+    password: str = Field(..., min_length=6, max_length=100, description="Senha do usuário")
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "username": "joao.silva",
+                "password": "senha123",
+                "full_name": "João da Silva",
+                "email": "joao@empresa.com",
+                "role": "cashier",
+                "is_active": True,
+                "can_supply": True,
+                "salary": 2000.00
+            }
+        }
+
+class UserUpdate(UserBase, BaseUpdate):
+    """Schema para atualização de usuário"""
     username: Optional[str] = Field(None, min_length=3, max_length=50)
-    email: Optional[EmailStr] = None
-    full_name: Optional[str] = Field(None, min_length=2, max_length=100)
-    role: Optional[UserRole] = None
-    is_superuser: Optional[bool] = None
-    is_active: Optional[bool] = None
-    # Atualização opcional de senha
-    password: Optional[str] = Field(None, min_length=6)
-    # Compatibilidade com desktop
-    is_admin: Optional[bool] = None
-    salary: Optional[Decimal] = None
+    password: Optional[str] = Field(None, min_length=6, max_length=100, description="Nova senha (opcional)")
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "full_name": "João da Silva Santos",
+                "email": "joao.novo@empresa.com",
+                "role": "manager",
+                "is_active": True,
+                "can_supply": True,
+                "salary": 2500.00
+            }
+        }
 
-class UserResponse(BaseResponse):
-    username: str
-    email: Optional[str]
-    full_name: str
-    role: UserRole
-    is_superuser: bool
-    salary: Optional[Decimal]
-
-class UserLogin(BaseModel):
-    username: str
-    password: str
+class UserResponse(UserBase, BaseResponse):
+    """Schema para resposta da API"""
+    id: int
+    
+    class Config:
+        orm_mode = True
 
 class UserInDB(UserResponse):
+    """Schema para usuário no banco de dados"""
     hashed_password: str
 
+class UserLogin(BaseModel):
+    """Schema para login"""
+    username: str = Field(..., description="Nome de usuário")
+    password: str = Field(..., description="Senha")
+
 class Token(BaseModel):
+    """Schema para token de autenticação"""
     access_token: str
     token_type: str
     expires_in: int
 
 class TokenData(BaseModel):
+    """Schema para dados do token"""
     username: Optional[str] = None
