@@ -9,11 +9,12 @@ cmds = [
 
 [phases.build]
 cmds = [
-    "echo 'Build concluído!'"
+    "python -m pip install --upgrade pip",
+    "python -m pip install -r requirements.txt"
 ]
 
 [start]
-cmd = "bash start.sh"
+cmd = "gunicorn -w 4 -k uvicorn.workers.UvicornWorker main:app --bind 0.0.0.0:$PORT"
 
 [build.args]
 PYTHON_VERSION = "3.11"
