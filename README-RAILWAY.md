@@ -25,7 +25,11 @@ Este guia contém instruções para fazer o deploy do Backend PDV no Railway, in
 4. Vá para a aba "Variables" e configure as seguintes variáveis de ambiente:
    - `SECRET_KEY`: Uma chave secreta forte para segurança
    - `ENVIRONMENT`: Defina como "production"
-   - `DATABASE_URL`: Use o valor do banco de dados PostgreSQL criado anteriormente
+   
+   As seguintes variáveis são fornecidas automaticamente pelo Railway quando você conecta um banco de dados PostgreSQL ao seu projeto:
+   - `DATABASE_URL`: URL interna para conexão com o banco de dados (formato: postgresql://postgres:password@postgres.railway.internal:5432/railway)
+   - `DATABASE_PUBLIC_URL`: URL pública para conexão externa com o banco de dados (formato: postgresql://postgres:password@tramway.proxy.rlwy.net:port/railway)
+   - `PGDATA`: Diretório de dados do PostgreSQL
 
 ### Método 2: Deploy usando a CLI do Railway
 
@@ -49,6 +53,8 @@ Este guia contém instruções para fazer o deploy do Backend PDV no Railway, in
    railway variables set SECRET_KEY=sua-chave-secreta-aqui
    railway variables set ENVIRONMENT=production
    ```
+   
+   Observe que as variáveis relacionadas ao banco de dados (`DATABASE_URL`, `DATABASE_PUBLIC_URL` e `PGDATA`) serão configuradas automaticamente pelo Railway quando você conectar um banco de dados PostgreSQL ao seu projeto.
 
 5. Faça o deploy:
    ```
@@ -76,5 +82,8 @@ Este guia contém instruções para fazer o deploy do Backend PDV no Railway, in
 ## Notas Importantes
 
 - O Railway fornecerá automaticamente a variável `PORT` para a aplicação
+- O Railway fornecerá automaticamente as variáveis de conexão com o banco de dados (`DATABASE_URL`, `DATABASE_PUBLIC_URL` e `PGDATA`)
 - O script `start.sh` executará as migrações do banco de dados automaticamente
 - Certifique-se de atualizar a lista `ALLOWED_ORIGINS` no arquivo `.env.production` com os domínios do seu frontend
+- As credenciais do banco de dados são sensíveis e não devem ser compartilhadas ou expostas publicamente
+- Para conectar ferramentas externas ao banco de dados, use a variável `DATABASE_PUBLIC_URL`
