@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 from typing import List, Optional
 import os
@@ -20,7 +21,16 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
     
     # Configurações de CORS
-    ALLOWED_ORIGINS: List[str] = ["*"]
+    ALLOWED_ORIGINS: str = "*"  # Agora como string simples
+    
+    # Método para converter a string de origens em lista
+    @property
+    def allowed_origins_list(self) -> List[str]:
+        if not self.ALLOWED_ORIGINS:
+            return []
+        if self.ALLOWED_ORIGINS.strip() == "*":
+            return ["*"]
+        return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",") if origin.strip()]
     
     # Configurações de Email (opcional)
     SMTP_HOST: Optional[str] = None
@@ -35,17 +45,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = True
-        
-        @classmethod
-        def parse_env_var(cls, field_name: str, raw_val: str):
-            if field_name == 'ALLOWED_ORIGINS':
-                if not raw_val:
-                    return []
-                if isinstance(raw_val, str):
-                    if raw_val.strip() == '"*"' or raw_val.strip() == "'*'":
-                        return ["*"]
-                    return [origin.strip() for origin in raw_val.split(",") if origin.strip()]
-            return cls.json_loads(raw_val)  # type: ignore
+        extra = "ignore"  # Ignora campos extras no .env
 
 # Instância global das configurações
 @lru_cache()
