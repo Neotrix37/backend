@@ -12,17 +12,11 @@ PYTHON_VERSION = "3.11"
 name = "web"
 port = 8000
 
-[services]
-  [services.healthcheck]
-  timeout = 60
-  interval = 60
-  start_period = 30
-  retries = 3
-  path = "/health"
-  success_threshold = 1
-  failure_threshold = 3
-
-[healthcheck]
+[services.healthcheck]
 timeout = 60
-interval = 30
+interval = 60
+start_period = 30
 retries = 3
+path = "/health"
+success_threshold = 1
+failure_threshold = 3
