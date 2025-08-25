@@ -8,12 +8,23 @@ if [ -f ".env.production" ]; then
     echo " Carregando variáveis de ambiente de .env.production..."
     # Carregar apenas linhas válidas de variáveis de ambiente
     while IFS= read -r line || [ -n "$line" ]; do
-        # Ignorar linhas vazias, comentários e linhas sem sinal de igual
-        if [[ "$line" =~ ^[^#]*= && ! "$line" =~ ^[[:space:]]*# ]]; then
-            # Remover espaços em branco extras e exportar
-            export "$(echo "$line" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/"//g' -e "s/'//g")"
+        # Pular linhas vazias e comentários
+        if [ -z "$line" ] || [[ "$line" =~ ^[[:space:]]*# ]]; then
+            continue
         fi
-    done < .env.production
+        # Extrair chave e valor (tratando valores com =)
+        key=$(echo "$line" | cut -d '=' -f1)
+        value=$(echo "$line" | cut -d '=' -f2-)
+        
+        # Remover aspas se existirem
+        value=${value%"}"
+        value=${value#"}"}
+        value=${value%'"'}
+        value=${value#'"'}
+        
+        # Exportar a variável
+        export "$key"="$value"
+    done < ".env.production"
 fi
 
 # Configurações padrão
@@ -113,12 +124,4 @@ echo "   Ambiente: $ENVIRONMENT"
 echo "   Debug: $DEBUG"
 
 # Iniciar o Gunicorn com as configurações
-exec gunicorn \
-    --bind "$HOST:$PORT" \
-    --workers 2 \
-    --worker-class uvicorn.workers.UvicornWorker \
-    --timeout 30 \
-    --access-logfile - \
-    --error-logfile - \
-    --log-level info \
-    main:app
+exec uvicorn main:app --host $HOST --port $PORT --reload
