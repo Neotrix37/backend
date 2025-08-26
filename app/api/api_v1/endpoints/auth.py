@@ -127,19 +127,34 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)) -> Any:
 @router.post("/login", response_model=Token)
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)) -> Any:
     """Login do usuário"""
+    print(f"Tentativa de login para o usuário: {form_data.username}")
+    
     # Buscar usuário no banco
     user = db.query(User).filter(
         User.username == form_data.username,
         User.is_active == True
     ).first()
     
-    # Verificar se usuário existe e senha está correta
-    if not user or not verify_password(form_data.password, user.hashed_password):
+    if not user:
+        print(f"Usuário não encontrado ou inativo: {form_data.username}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Username ou senha incorretos",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    
+    print(f"Usuário encontrado: {user.username}, Hash armazenado: {user.hashed_password[:20]}...")
+    
+    # Verificar senha
+    if not verify_password(form_data.password, user.hashed_password):
+        print("Senha incorreta")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Username ou senha incorretos",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    print(f"Login bem-sucedido para o usuário: {user.username}")
     
     # Criar token de acesso
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
