@@ -78,22 +78,35 @@ async def update_product(product_id: int, product_data: ProductUpdate, db: Sessi
 			detail="Produto não encontrado"
 		)
 
+	update_data = product_data.model_dump(exclude_unset=True)
+	
 	# Valida a categoria se for fornecida
-	if product_data.category_id is not None and product_data.category_id != 0:
-		category = db.get(Category, product_data.category_id)
+	if 'category_id' in update_data and update_data['category_id'] is not None and update_data['category_id'] != 0:
+		category = db.get(Category, update_data['category_id'])
 		if not category:
 			raise HTTPException(
 				status_code=status.HTTP_400_BAD_REQUEST,
-				detail=f"Categoria com ID {product_data.category_id} não encontrada"
+				detail=f"Categoria com ID {update_data['category_id']} não encontrada"
 			)
-
-	# Atualiza apenas os campos fornecidos
-	update_data = product_data.model_dump(exclude_unset=True)
+	
+	# Valida SKU único se estiver sendo atualizado
+	if 'sku' in update_data and update_data['sku']:
+		existing_product = db.query(Product).filter(
+			Product.sku == update_data['sku'],
+			Product.id != product_id
+		).first()
+		
+		if existing_product:
+			raise HTTPException(
+				status_code=status.HTTP_400_BAD_REQUEST,
+				detail=f"Já existe um produto com o SKU: {update_data['sku']}"
+			)
 	
 	# Remove category_id se for 0 (valor padrão do Swagger)
 	if 'category_id' in update_data and update_data['category_id'] == 0:
 		update_data['category_id'] = None
 	
+	# Atualiza os campos
 	for field, value in update_data.items():
 		setattr(product, field, value)
 
