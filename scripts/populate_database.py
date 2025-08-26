@@ -58,7 +58,8 @@ def populate_users(db: Session):
             hashed_password=get_password_hash("842384"),
             role="admin",
             is_superuser=True,
-            is_active=True
+            is_active=True,
+            salary=Decimal('5000.00')
         )
         db.add(marrapaz)
     
@@ -342,6 +343,9 @@ def populate_sales(db: Session, products, employees, customers):
     
     print("Criando vendas...")
     
+    # Usar o primeiro funcionário para todas as vendas se houver apenas um
+    employee_id = employees[0].id
+    
     # Venda 1: Cliente VIP compra bebidas e alimentos
     sale1 = Sale(
         sale_number="V001",
@@ -352,8 +356,8 @@ def populate_sales(db: Session, products, employees, customers):
         total_amount=Decimal("31.88"),
         payment_method="credit_card",
         payment_status="paid",
-        customer_id=customers[0].id,  # Cliente VIP
-        employee_id=employees[0].id,  # João Silva
+        customer_id=customers[0].id if len(customers) > 0 else None,  # Cliente VIP
+        employee_id=employee_id,
         notes="Venda com desconto VIP",
         is_delivery=False
     )
@@ -361,66 +365,76 @@ def populate_sales(db: Session, products, employees, customers):
     db.flush()  # Para obter o ID da venda
     
     # Itens da venda 1
-    sale1_items = [
-        SaleItem(
-            quantity=2,
-            unit_price=Decimal("7.90"),
-            discount_percent=Decimal("5.0"),
-            total_price=Decimal("15.01"),
-            sale_id=sale1.id,
-            product_id=products[0].id  # Coca-Cola
-        ),
-        SaleItem(
-            quantity=1,
-            unit_price=Decimal("22.90"),
-            discount_percent=Decimal("0.0"),
-            total_price=Decimal("22.90"),
-            sale_id=sale1.id,
-            product_id=products[1].id  # Arroz
-        )
-    ]
+    sale1_items = []
+    if len(products) >= 2:  # Verificar se existem produtos suficientes
+        sale1_items = [
+            SaleItem(
+                quantity=2,
+                unit_price=Decimal("7.90"),
+                discount_percent=Decimal("5.0"),
+                total_price=Decimal("15.01"),
+                sale_id=sale1.id,
+                product_id=products[0].id  # Primeiro produto
+            ),
+            SaleItem(
+                quantity=1,
+                unit_price=Decimal("22.90"),
+                discount_percent=Decimal("0.0"),
+                total_price=Decimal("22.90"),
+                sale_id=sale1.id,
+                product_id=products[1].id  # Segundo produto
+            )
+        ]
     
     for item in sale1_items:
         db.add(item)
     
-    # Venda 2: Empresa compra produtos de limpeza
-    sale2 = Sale(
-        sale_number="V002",
-        status="completed",
-        subtotal=Decimal("18.00"),
-        tax_amount=Decimal("1.80"),
-        discount_amount=Decimal("0.00"),
-        total_amount=Decimal("19.80"),
-        payment_method="bank_transfer",
-        payment_status="paid",
-        customer_id=customers[1].id,  # Empresa ABC
-        employee_id=employees[1].id,  # Maria Santos
-        notes="Compra para estoque da empresa",
-        is_delivery=True,
-        delivery_address="Av. Empresarial, 222 - Maputo"
-    )
-    db.add(sale2)
-    db.flush()
+    # Venda 2: Empresa compra produtos de limpeza (apenas se houver clientes e produtos suficientes)
+    sale2 = None
+    sale2_items = []
     
-    # Itens da venda 2
-    sale2_items = [
-        SaleItem(
-            quantity=4,
-            unit_price=Decimal("4.50"),
-            discount_percent=Decimal("0.0"),
-            total_price=Decimal("18.00"),
-            sale_id=sale2.id,
-            product_id=products[2].id  # Detergente
+    if len(customers) > 1 and len(products) > 2:  # Verificar se há clientes e produtos suficientes
+        sale2 = Sale(
+            sale_number="V002",
+            status="completed",
+            subtotal=Decimal("18.00"),
+            tax_amount=Decimal("1.80"),
+            discount_amount=Decimal("0.00"),
+            total_amount=Decimal("19.80"),
+            payment_method="bank_transfer",
+            payment_status="paid",
+            customer_id=customers[1].id if len(customers) > 1 else None,  # Segundo cliente
+            employee_id=employee_id,  # Usar o mesmo funcionário
+            notes="Compra para estoque da empresa",
+            is_delivery=True,
+            delivery_address="Av. Empresarial, 222 - Maputo"
         )
-    ]
-    
-    for item in sale2_items:
-        db.add(item)
+        db.add(sale2)
+        db.flush()
+        
+        # Itens da venda 2
+        sale2_items = [
+            SaleItem(
+                quantity=4,
+                unit_price=Decimal("4.50"),
+                discount_percent=Decimal("0.0"),
+                total_price=Decimal("18.00"),
+                sale_id=sale2.id,
+                product_id=products[2].id if len(products) > 2 else products[0].id  # Terceiro produto ou primeiro se não houver
+            )
+        ]
+        
+        for item in sale2_items:
+            db.add(item)
     
     db.commit()
-    print(f"✅ 2 vendas criadas com {len(sale1_items) + len(sale2_items)} itens")
     
-    return [sale1, sale2]
+    # Mensagem de sucesso
+    total_sales = 1 + (1 if sale2 else 0)
+    total_items = len(sale1_items) + len(sale2_items)
+    print(f"✅ {total_sales} vendas criadas com {total_items} itens")
+    
+    return [sale1, sale2] if sale2 else [sale1]
 
 def populate_inventory_movements(db: Session, products):
     """Popular movimentações de inventário"""
