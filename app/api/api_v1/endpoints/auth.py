@@ -84,17 +84,20 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)) -> Any:
     # Criar hash da senha
     hashed_password = get_password_hash(user_data.password)
     
-    # Criar usuário
-    user_dict = user_data.model_dump()
-    user_dict.pop("password")  # Remover senha em texto plano
-    user_dict["hashed_password"] = hashed_password
-    # Mapear campos do desktop
-    is_admin_flag = bool(user_dict.pop("is_admin", False))
-    if is_admin_flag:
+    # Preparar dados do usuário
+    user_dict = user_data.model_dump(exclude={"password", "is_admin"})
+    
+    # Definir role e is_superuser baseado em is_admin se fornecido
+    if user_data.is_admin is not None:
         user_dict["role"] = UserRole.ADMIN
         user_dict["is_superuser"] = True
     
-    new_user = User(**user_dict)
+    # Criar usuário
+    new_user = User(
+        **user_dict,
+        hashed_password=hashed_password
+    )
+    
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
