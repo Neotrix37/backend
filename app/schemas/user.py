@@ -18,6 +18,7 @@ class UserCreate(BaseCreate):
     role: Optional[UserRole] = Field(UserRole.VIEWER, example=UserRole.VIEWER)
     is_superuser: bool = Field(False, example=False)
     is_admin: bool = Field(False, example=True)
+    salary: Optional[Decimal] = Field(None, example=1500.00)
 
     class Config:
         json_encoders = {

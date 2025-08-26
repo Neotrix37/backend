@@ -19,7 +19,7 @@ class User(BaseModel):
     full_name = Column(String(100), nullable=False)
     role = Column(Enum(UserRole), default=UserRole.VIEWER, nullable=False)
     is_superuser = Column(Boolean, default=False, nullable=False)
-    salary = Column(Numeric(10, 2), nullable=True)
+    salary = Column(Numeric(10, 2), nullable=True)  # Campo opcional
     
     # Relacionamentos
     sales = relationship("Sale", back_populates="user")

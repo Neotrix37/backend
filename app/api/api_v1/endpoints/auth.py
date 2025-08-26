@@ -98,46 +98,44 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)) -> Any:
         print("✅ Hash da senha criado com sucesso")
         
         # Preparar dados do usuário
-        user_data_dict = user_data.model_dump(
-            exclude={"password", "is_admin"},
-            exclude_unset=True
-        )
+        user_data_dict = user_data.dict()
         
         # Definir role e is_superuser baseado em is_admin
-        is_admin = getattr(user_data, 'is_admin', False)
-        if is_admin:
-            user_data_dict["role"] = UserRole.ADMIN
-            user_data_dict["is_superuser"] = True
-            print("🔑 Usuário configurado como administrador")
+        is_admin = user_data_dict.pop('is_admin', False)
+        role = UserRole.ADMIN if is_admin else UserRole.VIEWER
         
-        # Criar usuário
-        new_user = User(
+        # Definir um valor padrão para o salário se não for fornecido
+        salary = user_data_dict.pop('salary', Decimal('1500.00'))
+        
+        # Criar objeto de usuário com os dados fornecidos
+        db_user = User(
             **user_data_dict,
             hashed_password=hashed_password,
-            is_active=True
+            role=role,
+            is_superuser=is_admin,
+            is_active=True,
+            salary=salary  # Adicionando o campo salary com valor padrão
         )
         
-        print(f"📝 Criando novo usuário no banco de dados: {new_user}")
+        print(f"📝 Criando novo usuário no banco de dados: {db_user}")
         
-        db.add(new_user)
+        # Adicionar e commitar o usuário
+        db.add(db_user)
         db.commit()
-        db.refresh(new_user)
+        db.refresh(db_user)
         
-        print(f"✅ Usuário {new_user.username} criado com sucesso! ID: {new_user.id}")
-        print("=== FIM DO REGISTRO ===\n")
-        
-        return new_user
+        print(f"✅ Usuário criado com sucesso! ID: {db_user.id}")
+        return db_user
         
     except Exception as e:
         db.rollback()
-        error_msg = f"❌ ERRO ao criar usuário: {str(e)}. Tipo: {type(e).__name__}"
-        print(error_msg)
-        if hasattr(e, 'orig'):
-            print(f"Detalhes do erro: {e.orig}")
-        print("=== FIM DO REGISTRO COM ERRO ===\n")
+        error_type = type(e).__name__
+        error_detail = str(e)
+        print(f"❌ ERRO ao criar usuário: {error_detail}. Tipo: {error_type}")
+        print(f"=== FIM DO REGISTRO COM ERRO ===\n")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=error_msg
+            detail=f"Erro ao criar usuário: {error_detail}"
         )
 
 @router.post("/login", response_model=Token)
