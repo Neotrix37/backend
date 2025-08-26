@@ -104,7 +104,8 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)) -> Any:
         # Criar usuário sem o campo salary
         new_user = User(
             **user_data_dict,
-            hashed_password=hashed_password
+            hashed_password=hashed_password,
+            is_active=True  # Garantir que o usuário esteja ativo
         )
         
         print(f"Criando usuário: {new_user}")
@@ -119,6 +120,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)) -> Any:
         db.rollback()
         print(f"Erro ao criar usuário: {str(e)}")
         print(f"Tipo do erro: {type(e).__name__}")
+        print(f"Detalhes do erro: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Erro ao processar o registro: {str(e)}"

@@ -18,7 +18,8 @@ class UserCreate(BaseCreate):
     role: Optional[UserRole] = UserRole.VIEWER
     is_superuser: Optional[bool] = False
     is_admin: bool = False
-    salary: Optional[Decimal] = Field(None, ge=0)
+    # Removido temporariamente para evitar erros de validação
+    # salary: Optional[Decimal] = Field(None, ge=0)
 
     class Config:
         json_encoders = {
