@@ -58,20 +58,13 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
 async def register(user_data: UserCreate, db: Session = Depends(get_db)) -> Any:
     """
     Registrar novo usuário
-    
-    Exemplo de requisição:
-    ```json
-    {
-        "username": "marrapaz",
-        "email": "marrapaz@empresa.com",
-        "password": "senha123",
-        "full_name": "Usuário Marrapaz",
-        "is_admin": true
-    }
-    ```
     """
     try:
-        print(f"Dados recebidos: {user_data}")
+        print(f"\n=== INÍCIO DO REGISTRO ===")
+        print(f"Tentando registrar usuário: {user_data.username}")
+        print(f"Email: {user_data.email}")
+        print(f"Nome completo: {user_data.full_name}")
+        print(f"É admin: {getattr(user_data, 'is_admin', False)}")
         
         # Verificar se já existe usuário com o mesmo username
         existing_user = db.query(User).filter(
@@ -80,7 +73,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)) -> Any:
         ).first()
         
         if existing_user:
-            print(f"Usuário já existe: {user_data.username}")
+            print(f"❌ ERRO: Já existe um usuário ativo com o username: {user_data.username}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Já existe um usuário com este username"
@@ -94,7 +87,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)) -> Any:
             ).first()
             
             if existing_email:
-                print(f"Email já existe: {user_data.email}")
+                print(f"❌ ERRO: Já existe um usuário ativo com o email: {user_data.email}")
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Já existe um usuário com este email"
@@ -102,6 +95,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)) -> Any:
         
         # Criar hash da senha
         hashed_password = get_password_hash(user_data.password)
+        print("✅ Hash da senha criado com sucesso")
         
         # Preparar dados do usuário
         user_data_dict = user_data.model_dump(
@@ -110,9 +104,11 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)) -> Any:
         )
         
         # Definir role e is_superuser baseado em is_admin
-        if user_data.is_admin:
+        is_admin = getattr(user_data, 'is_admin', False)
+        if is_admin:
             user_data_dict["role"] = UserRole.ADMIN
             user_data_dict["is_superuser"] = True
+            print("🔑 Usuário configurado como administrador")
         
         # Criar usuário
         new_user = User(
@@ -121,23 +117,27 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)) -> Any:
             is_active=True
         )
         
-        print(f"Criando usuário: {new_user}")
+        print(f"📝 Criando novo usuário no banco de dados: {new_user}")
         
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
         
+        print(f"✅ Usuário {new_user.username} criado com sucesso! ID: {new_user.id}")
+        print("=== FIM DO REGISTRO ===\n")
+        
         return new_user
         
     except Exception as e:
         db.rollback()
-        error_detail = f"Erro ao criar usuário: {str(e)}. Tipo: {type(e).__name__}"
-        print(error_detail)
+        error_msg = f"❌ ERRO ao criar usuário: {str(e)}. Tipo: {type(e).__name__}"
+        print(error_msg)
         if hasattr(e, 'orig'):
-            print(f"Erro original: {e.orig}")
+            print(f"Detalhes do erro: {e.orig}")
+        print("=== FIM DO REGISTRO COM ERRO ===\n")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=error_detail
+            detail=error_msg
         )
 
 @router.post("/login", response_model=Token)
