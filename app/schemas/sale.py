@@ -1,55 +1,46 @@
-from pydantic import BaseModel, Field, validator
-from typing import Optional, List
-from decimal import Decimal
+from pydantic import BaseModel, Field
+from typing import List, Optional
+from datetime import datetime
 from enum import Enum
-from .base import BaseResponse, BaseCreate, BaseUpdate
 
-class SaleStatus(str, Enum):
-    PENDING = "pending"
-    COMPLETED = "completed"
-    CANCELLED = "cancelled"
-    REFUNDED = "refunded"
+class CartItemCreate(BaseModel):
+    """Esquema para adicionar item ao carrinho"""
+    product_id: int
+    quantity: int = Field(gt=0, default=1)
+
+class CartItemResponse(CartItemCreate):
+    """Resposta para itens do carrinho"""
+    name: str
+    unit_price: float
+    total_price: float
+
+class CartResponse(BaseModel):
+    """Resposta com o carrinho de compras"""
+    items: List[CartItemResponse] = []
+    subtotal: float = 0.0
+    tax_amount: float = 0.0
+    total: float = 0.0
 
 class PaymentMethod(str, Enum):
-    CASH = "cash"
-    CREDIT_CARD = "credit_card"
-    DEBIT_CARD = "debit_card"
+    """Métodos de pagamento disponíveis"""
+    DINHEIRO = "dinheiro"
+    CREDITO = "credito"
+    DEBITO = "debito"
     PIX = "pix"
-    BANK_TRANSFER = "bank_transfer"
-    CHECK = "check"
 
-class SaleItemCreate(BaseModel):
-    product_id: int
-    quantity: int = Field(..., gt=0)
-    unit_price: Decimal = Field(..., ge=0)
-    discount_percent: Decimal = Field(0, ge=0, le=100)
-
-class SaleCreate(BaseCreate):
+class CheckoutRequest(BaseModel):
+    """Dados para finalizar a venda"""
+    payment_method: PaymentMethod
     customer_id: Optional[int] = None
-    employee_id: Optional[int] = None
-    payment_method: Optional[PaymentMethod] = None
-    notes: Optional[str] = None
-    is_delivery: bool = False
-    delivery_address: Optional[str] = None
-    items: List[SaleItemCreate]
-
-class SaleUpdate(BaseUpdate):
-    status: Optional[SaleStatus] = None
-    payment_status: Optional[str] = None
     notes: Optional[str] = None
 
-class SaleResponse(BaseResponse):
+class SaleResponse(BaseModel):
+    """Resposta da venda finalizada"""
+    id: int
     sale_number: str
-    status: SaleStatus
-    subtotal: Decimal
-    tax_amount: Decimal
-    discount_amount: Decimal
-    total_amount: Decimal
-    payment_method: Optional[PaymentMethod]
-    payment_status: Optional[str]
-    customer_id: Optional[int]
-    employee_id: Optional[int]
-    user_id: Optional[int]
-    notes: Optional[str]
-    is_delivery: bool
-    delivery_address: Optional[str]
+    total_amount: float
+    payment_method: str
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
