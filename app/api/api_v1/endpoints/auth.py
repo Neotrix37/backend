@@ -56,7 +56,20 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(user_data: UserCreate, db: Session = Depends(get_db)) -> Any:
-    """Registrar novo usuário"""
+    """
+    Registrar novo usuário
+    
+    Exemplo de requisição:
+    ```json
+    {
+        "username": "marrapaz",
+        "email": "marrapaz@empresa.com",
+        "password": "senha123",
+        "full_name": "Usuário Marrapaz",
+        "is_admin": true
+    }
+    ```
+    """
     try:
         print(f"Dados recebidos: {user_data}")
         
@@ -92,20 +105,20 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)) -> Any:
         
         # Preparar dados do usuário
         user_data_dict = user_data.model_dump(
-            exclude={"password", "is_admin", "salary"}, 
+            exclude={"password", "is_admin"},
             exclude_unset=True
         )
         
-        # Definir role e is_superuser baseado em is_admin se fornecido
+        # Definir role e is_superuser baseado em is_admin
         if user_data.is_admin:
             user_data_dict["role"] = UserRole.ADMIN
             user_data_dict["is_superuser"] = True
         
-        # Criar usuário sem o campo salary
+        # Criar usuário
         new_user = User(
             **user_data_dict,
             hashed_password=hashed_password,
-            is_active=True  # Garantir que o usuário esteja ativo
+            is_active=True
         )
         
         print(f"Criando usuário: {new_user}")
@@ -118,12 +131,13 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)) -> Any:
         
     except Exception as e:
         db.rollback()
-        print(f"Erro ao criar usuário: {str(e)}")
-        print(f"Tipo do erro: {type(e).__name__}")
-        print(f"Detalhes do erro: {e}")
+        error_detail = f"Erro ao criar usuário: {str(e)}. Tipo: {type(e).__name__}"
+        print(error_detail)
+        if hasattr(e, 'orig'):
+            print(f"Erro original: {e.orig}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao processar o registro: {str(e)}"
+            detail=error_detail
         )
 
 @router.post("/login", response_model=Token)
