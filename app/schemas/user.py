@@ -15,12 +15,15 @@ class UserCreate(BaseCreate):
     email: Optional[EmailStr] = None
     password: str = Field(..., min_length=6)
     full_name: str = Field(..., min_length=2, max_length=100)
-    role: UserRole = UserRole.VIEWER
-    is_superuser: bool = False
-    # Compatibilidade com desktop (Flet)
-    is_admin: Optional[bool] = False
-    # Removido temporariamente para evitar erros
-    # salary: Optional[Decimal] = None
+    role: Optional[UserRole] = UserRole.VIEWER
+    is_superuser: Optional[bool] = False
+    is_admin: bool = False
+    salary: Optional[Decimal] = Field(None, ge=0)
+
+    class Config:
+        json_encoders = {
+            Decimal: lambda v: str(v) if v is not None else None
+        }
 
 class UserUpdate(BaseUpdate):
     username: Optional[str] = Field(None, min_length=3, max_length=50)

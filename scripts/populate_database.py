@@ -36,35 +36,33 @@ def create_tables():
     Base.metadata.create_all(bind=engine)
 
 def populate_users(db: Session):
-	"""Popular usuários do sistema"""
-	print("Verificando usuários...")
-	# Upsert do usuário admin
-	admin = db.query(User).filter(User.username == "Marrapaz").first()
-	if admin:
-		print("Atualizando usuário admin existente...")
-		admin.email = "saide.adamo@empresa.com"
-		admin.full_name = "Saide Adamo Marrapaz"
-		admin.hashed_password = get_password_hash("603684")
-		admin.role = "admin"
-		admin.is_superuser = True
-		admin.is_active = True
-		users = [admin]
-	else:
-		print("Criando usuário admin...")
-		admin = User(
-			username="Marrapaz",
-			email="saide.adamo@empresa.com",
-			full_name="Saide Adamo Marrapaz",
-			hashed_password=get_password_hash("603684"),
-			role="admin",
-			is_superuser=True,
-			is_active=True,
-		)
-		db.add(admin)
-		users = [admin]
-	db.commit()
-	print(f"✅ {len(users)} usuário(s) prontos")
-	return users
+    """Popular usuários do sistema"""
+    print("Verificando usuários...")
+    # Upsert do usuário admin
+    admin = db.query(User).filter(User.username == "Marrapaz").first()
+    if admin:
+        print("Atualizando usuário Marrapaz existente...")
+        admin.email = "marrapaz@empresa.com"
+        admin.full_name = "Usuário Marrapaz"
+        admin.hashed_password = get_password_hash("842384")
+        admin.role = "admin"
+        admin.is_superuser = True
+        admin.is_active = True
+    else:
+        print("Criando usuário Marrapaz...")
+        admin = User(
+            username="Marrapaz",
+            email="marrapaz@empresa.com",
+            full_name="Usuário Marrapaz",
+            hashed_password=get_password_hash("842384"),
+            role="admin",
+            is_superuser=True,
+            is_active=True
+        )
+        db.add(admin)
+    
+    db.commit()
+    return admin
 
 def populate_categories(db: Session):
     """Popular categorias"""
@@ -473,7 +471,7 @@ def main():
         
         print("\n🎉 Banco de dados populado com sucesso!")
         print(f"📊 Resumo:")
-        print(f"   - Usuários: {len(users)}")
+        print(f"   - Usuários: {len([users])}")
         print(f"   - Categorias: {len(categories)}")
         print(f"   - Produtos: {len(products)}")
         print(f"   - Funcionários: {len(employees)}")
@@ -482,7 +480,7 @@ def main():
         
         print(f"\n🔐 Credenciais de acesso:")
         print(f"   - Username: Marrapaz")
-        print(f"   - Senha: 603684")
+        print(f"   - Senha: 842384")
         print(f"   - Role: Admin")
         
     except Exception as e:

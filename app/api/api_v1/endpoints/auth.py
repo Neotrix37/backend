@@ -58,6 +58,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
 async def register(user_data: UserCreate, db: Session = Depends(get_db)) -> Any:
     """Registrar novo usuário"""
     try:
+        print(f"Dados recebidos: {user_data}")
+        
         # Verificar se já existe usuário com o mesmo username
         existing_user = db.query(User).filter(
             User.username == user_data.username,
@@ -65,6 +67,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)) -> Any:
         ).first()
         
         if existing_user:
+            print(f"Usuário já existe: {user_data.username}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Já existe um usuário com este username"
@@ -78,6 +81,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)) -> Any:
             ).first()
             
             if existing_email:
+                print(f"Email já existe: {user_data.email}")
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Já existe um usuário com este email"
@@ -87,25 +91,23 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)) -> Any:
         hashed_password = get_password_hash(user_data.password)
         
         # Preparar dados do usuário
-        user_dict = user_data.model_dump(exclude={"password", "is_admin"}, exclude_none=True)
+        user_data_dict = user_data.model_dump(
+            exclude={"password", "is_admin", "salary"}, 
+            exclude_unset=True
+        )
         
         # Definir role e is_superuser baseado em is_admin se fornecido
         if user_data.is_admin:
-            user_dict["role"] = UserRole.ADMIN
-            user_dict["is_superuser"] = True
+            user_data_dict["role"] = UserRole.ADMIN
+            user_data_dict["is_superuser"] = True
         
-        # Converter salary para Decimal se for string
-        if 'salary' in user_dict and isinstance(user_dict['salary'], str):
-            try:
-                user_dict['salary'] = Decimal(user_dict['salary'])
-            except (ValueError, TypeError):
-                user_dict['salary'] = None
-        
-        # Criar usuário
+        # Criar usuário sem o campo salary
         new_user = User(
-            **user_dict,
+            **user_data_dict,
             hashed_password=hashed_password
         )
+        
+        print(f"Criando usuário: {new_user}")
         
         db.add(new_user)
         db.commit()
@@ -115,9 +117,11 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)) -> Any:
         
     except Exception as e:
         db.rollback()
+        print(f"Erro ao criar usuário: {str(e)}")
+        print(f"Tipo do erro: {type(e).__name__}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao criar usuário: {str(e)}"
+            detail=f"Erro ao processar o registro: {str(e)}"
         )
 
 @router.post("/login", response_model=Token)
