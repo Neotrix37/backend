@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     # Configurações de CORS e HTTPS
     ALLOWED_ORIGINS: str = "*"
     FORCE_HTTPS: bool = True
-    TRUSTED_HOSTS: List[str] = ["*", ".railway.app", "localhost", "127.0.0.1"]
+    TRUSTED_HOSTS: List[str] = ["*", ".railway.app", "localhost", "127.0.0.1", "backend-production-f01c.up.railway.app"]
     
     # Configurações de Email (opcionais com valores padrão)
     SMTP_HOST: str = ""
@@ -42,8 +42,13 @@ class Settings(BaseSettings):
     def allowed_origins_list(self) -> List[str]:
         if not self.ALLOWED_ORIGINS or self.ALLOWED_ORIGINS.strip() == "":
             return []
-        if self.ALLOWED_ORIGINS.strip() == "*":
+        if self.ALLOWED_ORIGINS.strip() == "*" and self.ENVIRONMENT == "development":
             return ["*"]
+        if self.ALLOWED_ORIGINS.strip() == "*" and self.ENVIRONMENT == "production":
+            return [
+                "https://*.railway.app",
+                "https://backend-production-f01c.up.railway.app"
+            ]
         return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",") if origin.strip()]
     
     # Validador para garantir que PORT seja um inteiro

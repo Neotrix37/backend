@@ -49,29 +49,25 @@ try:
     # Middleware personalizado para redirecionamento HTTPS
     @app.middleware("http")
     async def force_https_redirect(request: Request, call_next):
-        # Verifica se a requisição NÃO é HTTPS e NÃO é localhost
-        if request.url.scheme == 'http' and 'localhost' not in request.url.netloc:
-            # Cria a URL com HTTPS
-            url = request.url
-            https_url = url.replace(scheme='https')
-            return RedirectResponse(url=str(https_url), status_code=301)
-        
-        response = await call_next(request)
-        return response
+        # Não redirecionar requisições para /docs
+        if request.url.path.startswith("/docs") or request.url.path.startswith("/redoc"):
+            return await call_next(request)
+            
+        # Verificar se já é HTTPS
+        if request.url.scheme == "https" or settings.ENVIRONMENT == "development":
+            return await call_next(request)
+            
+        # Redirecionar para HTTPS
+        https_url = request.url.replace(scheme="https")
+        return RedirectResponse(https_url, status_code=status.HTTP_301_MOVED_PERMANENTLY)
     
     # Incluir rotas da API
     app.include_router(api_router, prefix=settings.API_V1_STR)
     
     # Rota raiz
-    @app.get("/")
+    @app.get("/", include_in_schema=False)
     async def root():
-        return {
-            "message": "Bem-vindo ao Sistema PDV Backend",
-            "version": "1.0.0",
-            "status": "online",
-            "environment": settings.ENVIRONMENT,
-            "docs": "/docs"
-        }
+        return RedirectResponse(url="/docs")
     
     # Rota de saúde robusta
     @app.get("/health", status_code=200, tags=["health"])
