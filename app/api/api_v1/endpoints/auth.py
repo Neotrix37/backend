@@ -97,24 +97,20 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)) -> Any:
         hashed_password = get_password_hash(user_data.password)
         print("✅ Hash da senha criado com sucesso")
         
-        # Preparar dados do usuário
-        user_data_dict = user_data.dict()
-        
         # Definir role e is_superuser baseado em is_admin
-        is_admin = user_data_dict.pop('is_admin', False)
+        is_admin = getattr(user_data, 'is_admin', False)
         role = UserRole.ADMIN if is_admin else UserRole.VIEWER
-        
-        # Definir um valor padrão para o salário se não for fornecido
-        salary = user_data_dict.pop('salary', Decimal('1500.00'))
         
         # Criar objeto de usuário com os dados fornecidos
         db_user = User(
-            **user_data_dict,
+            username=user_data.username,
+            email=user_data.email,
+            full_name=user_data.full_name,
             hashed_password=hashed_password,
             role=role,
             is_superuser=is_admin,
             is_active=True,
-            salary=salary  # Adicionando o campo salary com valor padrão
+            salary=getattr(user_data, 'salary', Decimal('1500.00'))
         )
         
         print(f"📝 Criando novo usuário no banco de dados: {db_user}")
