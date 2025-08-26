@@ -38,19 +38,20 @@ def create_tables():
 def populate_users(db: Session):
     """Popular usuários do sistema"""
     print("Verificando usuários...")
-    # Upsert do usuário admin
-    admin = db.query(User).filter(User.username == "Marrapaz").first()
-    if admin:
+    
+    # Upsert do usuário Marrapaz
+    marrapaz = db.query(User).filter(User.username == "Marrapaz").first()
+    if marrapaz:
         print("Atualizando usuário Marrapaz existente...")
-        admin.email = "marrapaz@empresa.com"
-        admin.full_name = "Usuário Marrapaz"
-        admin.hashed_password = get_password_hash("842384")
-        admin.role = "admin"
-        admin.is_superuser = True
-        admin.is_active = True
+        marrapaz.email = "marrapaz@empresa.com"
+        marrapaz.full_name = "Usuário Marrapaz"
+        marrapaz.hashed_password = get_password_hash("842384")
+        marrapaz.role = "admin"
+        marrapaz.is_superuser = True
+        marrapaz.is_active = True
     else:
         print("Criando usuário Marrapaz...")
-        admin = User(
+        marrapaz = User(
             username="Marrapaz",
             email="marrapaz@empresa.com",
             full_name="Usuário Marrapaz",
@@ -59,10 +60,11 @@ def populate_users(db: Session):
             is_superuser=True,
             is_active=True
         )
-        db.add(admin)
+        db.add(marrapaz)
     
     db.commit()
-    return admin
+    print(f"✅ Usuário 'Marrapaz' configurado com sucesso!")
+    return [marrapaz]
 
 def populate_categories(db: Session):
     """Popular categorias"""
@@ -471,7 +473,7 @@ def main():
         
         print("\n🎉 Banco de dados populado com sucesso!")
         print(f"📊 Resumo:")
-        print(f"   - Usuários: {len([users])}")
+        print(f"   - Usuários: {len(users)}")
         print(f"   - Categorias: {len(categories)}")
         print(f"   - Produtos: {len(products)}")
         print(f"   - Funcionários: {len(employees)}")
