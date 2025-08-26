@@ -1,7 +1,10 @@
 import os
 import sys
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.responses import RedirectResponse
 from datetime import datetime
 
 # Adicionar o diretório raiz ao path
@@ -19,6 +22,21 @@ try:
         openapi_url=f"{settings.API_V1_STR}/openapi.json"
     )
     
+    # Middleware para forçar HTTPS
+    if settings.ENVIRONMENT != "development":
+        app.add_middleware(HTTPSRedirectMiddleware)
+    
+    # Configurar hosts confiáveis
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=[
+            "*",  # Em produção, substitua por seus domínios reais
+            ".railway.app",
+            "localhost",
+            "127.0.0.1"
+        ]
+    )
+    
     # Configuração CORS
     app.add_middleware(
         CORSMiddleware,
@@ -27,6 +45,19 @@ try:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    
+    # Middleware personalizado para redirecionamento HTTPS
+    @app.middleware("http")
+    async def force_https_redirect(request: Request, call_next):
+        # Verifica se a requisição NÃO é HTTPS e NÃO é localhost
+        if request.url.scheme == 'http' and 'localhost' not in request.url.netloc:
+            # Cria a URL com HTTPS
+            url = request.url
+            https_url = url.replace(scheme='https')
+            return RedirectResponse(url=str(https_url), status_code=301)
+        
+        response = await call_next(request)
+        return response
     
     # Incluir rotas da API
     app.include_router(api_router, prefix=settings.API_V1_STR)

@@ -22,8 +22,10 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
     
-    # Configurações de CORS
+    # Configurações de CORS e HTTPS
     ALLOWED_ORIGINS: str = "*"
+    FORCE_HTTPS: bool = True
+    TRUSTED_HOSTS: List[str] = ["*", ".railway.app", "localhost", "127.0.0.1"]
     
     # Configurações de Email (opcionais com valores padrão)
     SMTP_HOST: str = ""
