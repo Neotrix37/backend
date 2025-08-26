@@ -2,7 +2,6 @@ import os
 import sys
 from fastapi import FastAPI, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import RedirectResponse
 from datetime import datetime
@@ -22,19 +21,26 @@ try:
         openapi_url=f"{settings.API_V1_STR}/openapi.json"
     )
     
-    # Middleware para forçar HTTPS
-    if settings.ENVIRONMENT != "development":
-        app.add_middleware(HTTPSRedirectMiddleware)
+    # Configuração do middleware HTTPS
+    if settings.ENVIRONMENT == "production" and settings.FORCE_HTTPS:
+        @app.middleware("http")
+        async def https_redirect_middleware(request: Request, call_next):
+            # Não redirecionar requisições para docs e redoc
+            if any(path in request.url.path for path in ["/docs", "/redoc", "/openapi.json"]):
+                return await call_next(request)
+                
+            # Se já for HTTPS ou for uma requisição de health check, continue
+            if request.url.scheme == "https" or request.url.path == "/health":
+                return await call_next(request)
+                
+            # Redireciona para HTTPS
+            https_url = request.url.replace(scheme="https")
+            return RedirectResponse(https_url, status_code=301)
     
     # Configurar hosts confiáveis
     app.add_middleware(
         TrustedHostMiddleware,
-        allowed_hosts=[
-            "*",  # Em produção, substitua por seus domínios reais
-            ".railway.app",
-            "localhost",
-            "127.0.0.1"
-        ]
+        allowed_hosts=settings.trusted_hosts
     )
     
     # Configuração CORS
@@ -46,28 +52,18 @@ try:
         allow_headers=["*"],
     )
     
-    # Middleware personalizado para redirecionamento HTTPS
-    @app.middleware("http")
-    async def force_https_redirect(request: Request, call_next):
-        # Não redirecionar requisições para /docs
-        if request.url.path.startswith("/docs") or request.url.path.startswith("/redoc"):
-            return await call_next(request)
-            
-        # Verificar se já é HTTPS
-        if request.url.scheme == "https" or settings.ENVIRONMENT == "development":
-            return await call_next(request)
-            
-        # Redirecionar para HTTPS
-        https_url = request.url.replace(scheme="https")
-        return RedirectResponse(https_url, status_code=status.HTTP_301_MOVED_PERMANENTLY)
-    
     # Incluir rotas da API
     app.include_router(api_router, prefix=settings.API_V1_STR)
     
-    # Rota raiz
+    # Rota raiz - redireciona para docs
     @app.get("/", include_in_schema=False)
     async def root():
-        return RedirectResponse(url="/docs")
+        return {
+            "message": "Bem-vindo ao Sistema PDV Backend",
+            "version": "1.0.0",
+            "environment": settings.ENVIRONMENT,
+            "docs": "/docs"
+        }
     
     # Rota de saúde robusta
     @app.get("/health", status_code=200, tags=["health"])

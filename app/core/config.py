@@ -25,7 +25,17 @@ class Settings(BaseSettings):
     # Configurações de CORS e HTTPS
     ALLOWED_ORIGINS: str = "*"
     FORCE_HTTPS: bool = True
-    TRUSTED_HOSTS: List[str] = ["*", ".railway.app", "localhost", "127.0.0.1", "backend-production-f01c.up.railway.app"]
+    
+    @property
+    def trusted_hosts(self) -> List[str]:
+        if self.ENVIRONMENT == "development":
+            return ["*", "localhost", "127.0.0.1"]
+        return [
+            ".railway.app",
+            "backend-production-f01c.up.railway.app",
+            "localhost",
+            "127.0.0.1"
+        ]
     
     # Configurações de Email (opcionais com valores padrão)
     SMTP_HOST: str = ""
@@ -40,16 +50,22 @@ class Settings(BaseSettings):
     # Método para converter a string de origens em lista
     @property
     def allowed_origins_list(self) -> List[str]:
+        if self.ENVIRONMENT == "development":
+            return ["*"]
+            
         if not self.ALLOWED_ORIGINS or self.ALLOWED_ORIGINS.strip() == "":
             return []
-        if self.ALLOWED_ORIGINS.strip() == "*" and self.ENVIRONMENT == "development":
-            return ["*"]
-        if self.ALLOWED_ORIGINS.strip() == "*" and self.ENVIRONMENT == "production":
-            return [
-                "https://*.railway.app",
-                "https://backend-production-f01c.up.railway.app"
-            ]
-        return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",") if origin.strip()]
+            
+        origins = [
+            "https://*.railway.app",
+            "https://backend-production-f01c.up.railway.app"
+        ]
+        
+        # Adiciona origens personalizadas se especificadas
+        if self.ALLOWED_ORIGINS.strip() != "*":
+            origins.extend([origin.strip() for origin in self.ALLOWED_ORIGINS.split(",") if origin.strip()])
+            
+        return list(set(origins))  # Remove duplicatas
     
     # Validador para garantir que PORT seja um inteiro
     @field_validator('PORT', mode='before')
