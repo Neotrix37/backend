@@ -51,15 +51,12 @@ async def create_product(product_data: ProductCreate, db: Session = Depends(get_
 		name=product_data.name,
 		description=product_data.description,
 		sku=product_data.sku,
-		barcode=product_data.barcode,
 		cost_price=product_data.cost_price,
 		sale_price=product_data.sale_price,
-		wholesale_price=product_data.wholesale_price,
 		current_stock=product_data.current_stock,
 		min_stock=product_data.min_stock,
-		max_stock=product_data.max_stock,
 		category_id=product_data.category_id,
-		is_service=product_data.is_service,
+		venda_por_peso=product_data.venda_por_peso
 	)
 	# Ativo por padrão
 	product.is_active = True
@@ -120,8 +117,8 @@ async def get_product_stock(product_id: int, db: Session = Depends(get_db)) -> A
 		)
 	return {
 		"product_id": product.id,
+		"name": product.name,
 		"current_stock": product.current_stock,
 		"min_stock": product.min_stock,
-		"max_stock": product.max_stock,
 		"stock_status": "low" if product.current_stock <= product.min_stock else "ok",
 	}

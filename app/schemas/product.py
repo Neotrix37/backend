@@ -7,7 +7,6 @@ class ProductCreate(BaseCreate):
     name: str = Field(..., min_length=1, max_length=200)
     description: Optional[str] = None
     sku: str = Field(..., min_length=1, max_length=50)
-    barcode: Optional[str] = Field(None, max_length=50)
     
     # Preços
     cost_price: Decimal = Field(..., ge=0)
@@ -33,7 +32,6 @@ class ProductUpdate(BaseUpdate):
     name: Optional[str] = Field(None, min_length=1, max_length=200)
     description: Optional[str] = None
     sku: Optional[str] = Field(None, min_length=1, max_length=50)
-    barcode: Optional[str] = Field(None, max_length=50)
     
     # Preços
     cost_price: Optional[Decimal] = Field(None, ge=0)
@@ -53,7 +51,6 @@ class ProductResponse(BaseResponse):
     name: str
     description: Optional[str]
     sku: str
-    barcode: Optional[str]
     cost_price: Decimal
     sale_price: Decimal
     current_stock: int

@@ -9,7 +9,6 @@ class Product(BaseModel):
     name = Column(String(200), nullable=False, index=True)
     description = Column(Text, nullable=True)
     sku = Column(String(50), unique=True, index=True, nullable=False)
-    barcode = Column(String(50), unique=True, index=True, nullable=True)
     
     # Preços
     cost_price = Column(Numeric(10, 2), nullable=False, default=0)
