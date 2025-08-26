@@ -1,21 +1,7 @@
 from sqlalchemy import Column, String, Text, Numeric, Integer, Boolean, ForeignKey, Enum
 from sqlalchemy.orm import relationship
-import enum
 from .base import BaseModel
-
-class SaleStatus(str, enum.Enum):
-    PENDING = "pending"
-    COMPLETED = "completed"
-    CANCELLED = "cancelled"
-    REFUNDED = "refunded"
-
-class PaymentMethod(str, enum.Enum):
-    CASH = "cash"
-    CREDIT_CARD = "credit_card"
-    DEBIT_CARD = "debit_card"
-    PIX = "pix"
-    BANK_TRANSFER = "bank_transfer"
-    CHECK = "check"
+from app.schemas.sale import SaleStatus, PaymentMethod
 
 class Sale(BaseModel):
     """Modelo para vendas do sistema"""
@@ -23,7 +9,7 @@ class Sale(BaseModel):
     
     # Informações da venda
     sale_number = Column(String(50), unique=True, index=True, nullable=False)
-    status = Column(Enum(SaleStatus), default=SaleStatus.PENDING, nullable=False)
+    status = Column(Enum(SaleStatus), default=SaleStatus.CONCLUIDA, nullable=False)
     
     # Valores
     subtotal = Column(Numeric(10, 2), nullable=False, default=0)
@@ -52,4 +38,10 @@ class Sale(BaseModel):
     items = relationship("SaleItem", back_populates="sale", cascade="all, delete-orphan")
     
     def __repr__(self):
-        return f"<Sale(number={self.sale_number}, total={self.total_amount})>"
+        return f"<Sale(id={self.id}, number={self.sale_number}, total={self.total_amount})>"
+    
+    def calculate_totals(self):
+        """Calcula os totais da venda com base nos itens"""
+        self.subtotal = sum(item.total_price for item in self.items)
+        self.tax_amount = self.subtotal * 0.10  # 10% de imposto
+        self.total_amount = self.subtotal + self.tax_amount - self.discount_amount

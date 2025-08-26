@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from datetime import datetime
 
 from app.core.database import get_db
 from app.models.product import Product
-from app.models.sale import Sale, SaleStatus, PaymentMethod
+from app.models.sale import Sale, SaleStatus
 from app.models.sale_item import SaleItem
-from app.schemas.sale import CartItemCreate, CartResponse, CheckoutRequest, SaleResponse
+from app.schemas.sale import CartItemCreate, CartResponse, CheckoutRequest, SaleResponse, PaymentMethod
 
 router = APIRouter(prefix="/cart", tags=["cart"])
 
@@ -89,11 +89,11 @@ async def checkout(
     # Cria a venda
     sale = Sale(
         sale_number=f"V{datetime.now().strftime('%Y%m%d%H%M%S')}",
-        status=SaleStatus.COMPLETED,
+        status=SaleStatus.CONCLUIDA,
         subtotal=cart_data.subtotal,
         tax_amount=cart_data.tax_amount,
         total_amount=cart_data.total,
-        payment_method=checkout_data.payment_method,
+        payment_method=PaymentMethod(checkout_data.payment_method),
         customer_id=checkout_data.customer_id,
         notes=checkout_data.notes
     )
