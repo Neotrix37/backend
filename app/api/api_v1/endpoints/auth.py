@@ -6,11 +6,13 @@ from typing import Any
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from decimal import Decimal
+from datetime import date
 
 from app.core.config import settings
 from app.core.database import get_db
 from app.schemas.user import UserCreate, UserResponse, UserLogin, Token
 from app.models.user import User, UserRole
+from app.models.employee import Employee  # Adicionado import do modelo Employee
 
 router = APIRouter()
 
@@ -106,7 +108,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)) -> Any:
             email=user_data.email,
             full_name=user_data.full_name,
             hashed_password=hashed_password,
-            role=UserRole.ADMIN if is_admin else UserRole.VIEWER,
+            role=UserRole.ADMIN if is_admin else UserRole.CASHIER,  # Define como CASHIER se não for admin
             is_superuser=is_admin,
             is_active=True,
             salary=Decimal('1500.00')  # Valor padrão explícito
@@ -118,6 +120,51 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)) -> Any:
         db.add(db_user)
         db.commit()
         db.refresh(db_user)
+        
+        # Se o usuário for um CASHIER, criar um registro de funcionário correspondente
+        if db_user.role == UserRole.CASHIER:
+            try:
+                print(f"🔄 Criando registro de funcionário para o usuário {db_user.id}")
+                
+                # Extrair primeiro e último nome do full_name
+                name_parts = db_user.full_name.strip().split()
+                first_name = name_parts[0] if name_parts else ""
+                last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
+                
+                # Criar funcionário com dados básicos
+                employee = Employee(
+                    name=db_user.full_name,
+                    email=db_user.email,
+                    cpf="000.000.000-00",  # CPF padrão, deve ser atualizado posteriormente
+                    position="Atendente",  # Cargo padrão
+                    department="Vendas",   # Departamento padrão
+                    hire_date=date.today(),  # Data de contratação atual
+                    salary=db_user.salary,  # Mesmo salário do usuário
+                    address="",            # Endereço vazio por padrão
+                    city="",               # Cidade vazia por padrão
+                    state="",              # Estado vazio por padrão
+                    zip_code="",           # CEP vazio por padrão
+                    is_active=True,        # Ativo por padrão
+                    can_sell=True          # Pode realizar vendas
+                )
+                
+                db.add(employee)
+                db.commit()
+                db.refresh(employee)
+                
+                print(f"✅ Funcionário criado com sucesso! ID: {employee.id}")
+                
+                # Atualizar o usuário com o ID do funcionário (se necessário)
+                # db_user.employee_id = employee.id
+                # db.commit()
+                # db.refresh(db_user)
+                
+            except Exception as emp_error:
+                # Se der erro ao criar o funcionário, apenas loga o erro e continua
+                # Não falha o registro do usuário por causa disso
+                error_type = type(emp_error).__name__
+                error_detail = str(emp_error)
+                print(f"⚠️ AVISO: Não foi possível criar registro de funcionário: {error_detail} (Tipo: {error_type})")
         
         print(f"✅ Usuário criado com sucesso! ID: {db_user.id}")
         return db_user
