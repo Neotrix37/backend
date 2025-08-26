@@ -1,29 +1,37 @@
-from fastapi import APIRouter, HTTPException, status, Depends
-from typing import List, Any
+from fastapi import APIRouter, HTTPException, status, Query, Depends
+from typing import List, Optional, Any
 from sqlalchemy.orm import Session
+
 from app.schemas.category import CategoryCreate, CategoryUpdate, CategoryResponse
-from app.models.category import Category
 from app.core.database import get_db
+from app.models.category import Category
 
 router = APIRouter()
 
 @router.get("/", response_model=List[CategoryResponse])
-async def get_categories(db: Session = Depends(get_db)) -> Any:
-    """Listar todas as categorias"""
-    categories = db.query(Category).filter(Category.is_active == True).all()
-    return categories
+async def list_categories(
+    skip: int = 0, 
+    limit: int = 100, 
+    search: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """Lista todas as categorias ativas"""
+    query = db.query(Category)
+    
+    if search:
+        query = query.filter(Category.name.ilike(f"%{search}%"))
+        
+    return query.offset(skip).limit(limit).all()
 
 @router.get("/{category_id}", response_model=CategoryResponse)
-async def get_category(category_id: int, db: Session = Depends(get_db)) -> Any:
-    """Obter categoria por ID"""
-    category = db.query(Category).filter(Category.id == category_id, Category.is_active == True).first()
-    
+async def get_category(category_id: int, db: Session = Depends(get_db)):
+    """Obtém uma categoria pelo ID"""
+    category = db.get(Category, category_id)
     if not category:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Categoria não encontrada"
         )
-    
     return category
 
 @router.post("/", response_model=CategoryResponse, status_code=status.HTTP_201_CREATED)

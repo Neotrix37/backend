@@ -6,6 +6,7 @@ from sqlalchemy import select
 from app.schemas.product import ProductCreate, ProductUpdate, ProductResponse
 from app.core.database import get_db
 from app.models.product import Product
+from app.models.category import Category
 
 router = APIRouter()
 
@@ -69,6 +70,7 @@ async def create_product(product_data: ProductCreate, db: Session = Depends(get_
 
 @router.put("/{product_id}", response_model=ProductResponse)
 async def update_product(product_id: int, product_data: ProductUpdate, db: Session = Depends(get_db)) -> Any:
+	# Busca o produto
 	product = db.get(Product, product_id)
 	if not product:
 		raise HTTPException(
@@ -76,7 +78,22 @@ async def update_product(product_id: int, product_data: ProductUpdate, db: Sessi
 			detail="Produto não encontrado"
 		)
 
+	# Valida a categoria se for fornecida
+	if product_data.category_id is not None and product_data.category_id != 0:
+		category = db.get(Category, product_data.category_id)
+		if not category:
+			raise HTTPException(
+				status_code=status.HTTP_400_BAD_REQUEST,
+				detail=f"Categoria com ID {product_data.category_id} não encontrada"
+			)
+
+	# Atualiza apenas os campos fornecidos
 	update_data = product_data.model_dump(exclude_unset=True)
+	
+	# Remove category_id se for 0 (valor padrão do Swagger)
+	if 'category_id' in update_data and update_data['category_id'] == 0:
+		update_data['category_id'] = None
+	
 	for field, value in update_data.items():
 		setattr(product, field, value)
 
