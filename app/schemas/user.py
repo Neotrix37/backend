@@ -19,7 +19,8 @@ class UserCreate(BaseCreate):
     is_superuser: bool = False
     # Compatibilidade com desktop (Flet)
     is_admin: Optional[bool] = False
-    salary: Optional[Decimal] = None
+    # Removido temporariamente para evitar erros
+    # salary: Optional[Decimal] = None
 
 class UserUpdate(BaseUpdate):
     username: Optional[str] = Field(None, min_length=3, max_length=50)
