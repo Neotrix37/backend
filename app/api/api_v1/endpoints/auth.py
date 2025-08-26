@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from decimal import Decimal
 
 from app.core.config import settings
 from app.core.database import get_db
@@ -56,53 +57,68 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(user_data: UserCreate, db: Session = Depends(get_db)) -> Any:
     """Registrar novo usuário"""
-    # Verificar se já existe usuário com o mesmo username
-    existing_user = db.query(User).filter(
-        User.username == user_data.username,
-        User.is_active == True
-    ).first()
-    
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Já existe um usuário com este username"
-        )
-    
-    # Verificar se já existe usuário com o mesmo email
-    if user_data.email:
-        existing_email = db.query(User).filter(
-            User.email == user_data.email,
+    try:
+        # Verificar se já existe usuário com o mesmo username
+        existing_user = db.query(User).filter(
+            User.username == user_data.username,
             User.is_active == True
         ).first()
         
-        if existing_email:
+        if existing_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Já existe um usuário com este email"
+                detail="Já existe um usuário com este username"
             )
-    
-    # Criar hash da senha
-    hashed_password = get_password_hash(user_data.password)
-    
-    # Preparar dados do usuário
-    user_dict = user_data.model_dump(exclude={"password", "is_admin"})
-    
-    # Definir role e is_superuser baseado em is_admin se fornecido
-    if user_data.is_admin is not None:
-        user_dict["role"] = UserRole.ADMIN
-        user_dict["is_superuser"] = True
-    
-    # Criar usuário
-    new_user = User(
-        **user_dict,
-        hashed_password=hashed_password
-    )
-    
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    
-    return new_user
+        
+        # Verificar se já existe usuário com o mesmo email
+        if user_data.email:
+            existing_email = db.query(User).filter(
+                User.email == user_data.email,
+                User.is_active == True
+            ).first()
+            
+            if existing_email:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Já existe um usuário com este email"
+                )
+        
+        # Criar hash da senha
+        hashed_password = get_password_hash(user_data.password)
+        
+        # Preparar dados do usuário
+        user_dict = user_data.model_dump(exclude={"password", "is_admin"}, exclude_none=True)
+        
+        # Definir role e is_superuser baseado em is_admin se fornecido
+        if user_data.is_admin:
+            user_dict["role"] = UserRole.ADMIN
+            user_dict["is_superuser"] = True
+        
+        # Converter salary para Decimal se for string
+        if 'salary' in user_dict and isinstance(user_dict['salary'], str):
+            try:
+                user_dict['salary'] = Decimal(user_dict['salary'])
+            except (ValueError, TypeError):
+                user_dict['salary'] = None
+        
+        # Criar usuário
+        new_user = User(
+            **user_dict,
+            hashed_password=hashed_password
+        )
+        
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        
+        return new_user
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao criar usuário: {str(e)}"
+        )
 
 @router.post("/login", response_model=Token)
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)) -> Any:
