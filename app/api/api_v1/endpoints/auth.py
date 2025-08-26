@@ -99,18 +99,17 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)) -> Any:
         
         # Definir role e is_superuser baseado em is_admin
         is_admin = getattr(user_data, 'is_admin', False)
-        role = UserRole.ADMIN if is_admin else UserRole.VIEWER
         
-        # Criar objeto de usuário com os dados fornecidos
+        # Criar objeto de usuário com valor padrão para salary
         db_user = User(
             username=user_data.username,
             email=user_data.email,
             full_name=user_data.full_name,
             hashed_password=hashed_password,
-            role=role,
+            role=UserRole.ADMIN if is_admin else UserRole.VIEWER,
             is_superuser=is_admin,
             is_active=True,
-            salary=getattr(user_data, 'salary', Decimal('1500.00'))
+            salary=Decimal('1500.00')  # Valor padrão explícito
         )
         
         print(f"📝 Criando novo usuário no banco de dados: {db_user}")
