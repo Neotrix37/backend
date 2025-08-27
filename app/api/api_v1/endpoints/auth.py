@@ -181,50 +181,51 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)) -> Any:
         )
 
 @router.post("/login", response_model=Token)
-async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)) -> Any:
-    """Login do usuário"""
-    print(f"Tentativa de login para o usuário: {form_data.username}")
+async def login_for_access_token(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db)
+):
+    """OAuth2 compatible token login, get an access token for future requests"""
+    user = db.query(User).filter(User.username == form_data.username).first()
     
-    # Buscar usuário no banco
-    user = db.query(User).filter(
-        User.username == form_data.username,
-        User.is_active == True
-    ).first()
-    
-    if not user:
-        print(f"Usuário não encontrado ou inativo: {form_data.username}")
+    if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Username ou senha incorretos",
+            detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    print(f"Usuário encontrado: {user.username}, Hash armazenado: {user.hashed_password[:20]}...")
-    
-    # Verificar senha
-    if not verify_password(form_data.password, user.hashed_password):
-        print("Senha incorreta")
+    if not user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Username ou senha incorretos",
-            headers={"WWW-Authenticate": "Bearer"},
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Inactive user"
         )
     
-    print(f"Login bem-sucedido para o usuário: {user.username}")
-    
-    # Criar token de acesso
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
+        data={"sub": user.username}, 
+        expires_delta=access_token_expires
     )
     
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        "user": {
+            "username": user.username,
+            "email": user.email,
+            "full_name": user.full_name,
+            "role": user.role,
+            "is_active": user.is_active
+        }
     }
 
-@router.get("/me", response_model=UserResponse)
-async def read_users_me(current_user: User = Depends(get_current_user)) -> Any:
-    """Obter informações do usuário atual"""
-    return current_user
+@router.get("/me")
+async def read_users_me(current_user: User = Depends(get_current_user)):
+    """Get current user information"""
+    return {
+        "username": current_user.username,
+        "email": current_user.email,
+        "full_name": current_user.full_name,
+        "role": current_user.role,
+        "is_active": current_user.is_active
+    }
