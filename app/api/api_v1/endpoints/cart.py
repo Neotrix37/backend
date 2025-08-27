@@ -9,7 +9,7 @@ from app.models.sale import Sale, SaleStatus
 from app.models.sale_item import SaleItem
 from app.schemas.sale import CartItemCreate, CartResponse, CheckoutRequest, SaleResponse, PaymentMethod
 
-router = APIRouter(prefix="/cart", tags=["cart"])
+router = APIRouter(tags=["cart"])
 
 # Armazenamento temporário do carrinho (em produção, use Redis ou banco de dados)
 cart_store: Dict[str, List[Dict[str, Any]]] = {}
