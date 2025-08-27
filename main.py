@@ -1,133 +1,48 @@
-import os
-import sys
-from fastapi import FastAPI, HTTPException, status, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.responses import RedirectResponse
-from datetime import datetime
+from app.core.config import settings
 
-# Adicionar o diretório raiz ao path
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# Cria a aplicação FastAPI sem redirecionamentos automáticos
+app = FastAPI(
+    title=settings.APP_NAME,
+    version="1.0.0",
+    description="Backend do Sistema PDV",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json"
+)
+
+# Configuração CORS simplificada
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Permite todas as origens temporariamente
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 try:
-    from app.core.config import settings
+    # Tenta importar e incluir as rotas da API
     from app.api.api_v1.api import api_router
-    
-    # Configuração inicial do FastAPI
-    app = FastAPI(
-        title=settings.APP_NAME,
-        version="1.0.0",
-        description="Backend do Sistema PDV - API para gestão de produtos, funcionários e sincronização",
-        openapi_url=f"{settings.API_V1_STR}/openapi.json"
-    )
-    
-    # Configuração do middleware HTTPS
-    if settings.ENVIRONMENT == "production" and settings.FORCE_HTTPS:
-        @app.middleware("http")
-        async def https_redirect_middleware(request: Request, call_next):
-            # Não redirecionar requisições para docs e redoc
-            if any(path in request.url.path for path in ["/docs", "/redoc", "/openapi.json"]):
-                return await call_next(request)
-                
-            # Se já for HTTPS ou for uma requisição de health check, continue
-            if request.url.scheme == "https" or request.url.path == "/health":
-                return await call_next(request)
-                
-            # Redireciona para HTTPS
-            https_url = request.url.replace(scheme="https")
-            return RedirectResponse(https_url, status_code=301)
-    
-    # Configurar hosts confiáveis
-    app.add_middleware(
-        TrustedHostMiddleware,
-        allowed_hosts=settings.trusted_hosts
-    )
-    
-    # Configuração CORS
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.allowed_origins_list,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-    
-    # Incluir rotas da API
     app.include_router(api_router, prefix=settings.API_V1_STR)
-    
-    # Rota raiz - redireciona para docs
-    @app.get("/", include_in_schema=False)
-    async def root():
-        return {
-            "message": "Bem-vindo ao Sistema PDV Backend",
-            "version": "1.0.0",
-            "environment": settings.ENVIRONMENT,
-            "docs": "/docs"
-        }
-    
-    # Rota de saúde robusta
-    @app.get("/health", status_code=200, tags=["health"])
-    async def health_check():
-        try:
-            # Verificar conexão com o banco de dados
-            from sqlalchemy import text
-            from app.db.session import SessionLocal
-            
-            db = SessionLocal()
-            db.execute(text("SELECT 1"))
-            db.close()
-            
-            return {
-                "status": "healthy",
-                "service": settings.APP_NAME,
-                "version": "1.0.0",
-                "environment": settings.ENVIRONMENT,
-                "database": "connected",
-                "timestamp": datetime.utcnow().isoformat()
-            }
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail={
-                    "status": "unhealthy",
-                    "error": str(e),
-                    "service": settings.APP_NAME,
-                    "environment": settings.ENVIRONMENT,
-                    "timestamp": datetime.utcnow().isoformat()
-                }
-            )
-    
-    print("✅ Aplicação configurada com sucesso!")
-    
-except ImportError as e:
-    print(f"❌ Erro ao importar módulos: {str(e)}")
-    print("Verifique se todos os módulos necessários estão instalados corretamente.")
-    print("Execute: pip install -r requirements.txt")
-    
-    # Criar uma aplicação mínima para exibir erros
-    app = FastAPI()
-    
-    @app.get("/")
-    async def error_root():
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro na inicialização da aplicação: {str(e)}"
-        )
+    print("✅ Rotas da API carregadas com sucesso!")
+except Exception as e:
+    print(f"⚠️ Aviso ao carregar rotas da API: {e}")
 
-# Ponto de entrada para o Gunicorn/Uvicorn
+# Rota raiz simplificada
+@app.get("/")
+async def root():
+    return {
+        "message": "Sistema PDV Backend",
+        "status": "online"
+    }
+
+# Rota de saúde simplificada
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
+
+# Para execução local
 if __name__ == "__main__":
     import uvicorn
-    
-    print("\n🚀 Iniciando servidor...")
-    print(f"   Ambiente: {os.getenv('ENVIRONMENT', 'production')}")
-    print(f"   Debug: {os.getenv('DEBUG', 'False')}")
-    print(f"   Host: {os.getenv('HOST', '0.0.0.0')}")
-    print(f"   Porta: {os.getenv('PORT', '8000')}")
-    
-    uvicorn.run(
-        "main:app",
-        host=os.getenv('HOST', '0.0.0.0'),
-        port=int(os.getenv('PORT', '8000')),
-        reload=os.getenv('DEBUG', 'False').lower() == 'true',
-        log_level="info"
-    )
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, log_level="info")
