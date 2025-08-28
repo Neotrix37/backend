@@ -12,10 +12,17 @@ class SaleStatus(str, Enum):
 
 class PaymentMethod(str, Enum):
     """Métodos de pagamento disponíveis"""
-    DINHEIRO = "dinheiro"
-    CREDITO = "credito"
-    DEBITO = "debito"
-    PIX = "pix"
+    DINHEIRO = "DINHEIRO"
+    MPESA = "MPESA"
+    EMOLA = "EMOLA"
+    CARTAO_POS = "CARTAO_POS"
+    TRANSFERENCIA = "TRANSFERENCIA"
+    MILLENNIUM = "MILLENNIUM"
+    BCI = "BCI"
+    STANDARD_BANK = "STANDARD_BANK"
+    ABSA_BANK = "ABSA_BANK"
+    LETSHEGO = "LETSHEGO"
+    MYBUCKS = "MYBUCKS"
 
 class CartItemCreate(BaseModel):
     """Esquema para adicionar item ao carrinho"""
