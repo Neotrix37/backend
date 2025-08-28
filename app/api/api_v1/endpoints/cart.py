@@ -52,10 +52,10 @@ async def add_to_cart(
         # Adiciona novo item ao carrinho
         cart.append({
             "product_id": product.id,
-            "name": product.name,
+            "nome": product.nome,
             "quantity": item.quantity,
-            "unit_price": float(product.price),
-            "total_price": float(product.price * item.quantity)
+            "unit_price": float(product.preco_venda),
+            "total_price": float(product.preco_venda * item.quantity)
         })
     
     return _calculate_cart_totals(cart)
@@ -133,7 +133,7 @@ def _calculate_cart_totals(cart: List[Dict[str, Any]]) -> CartResponse:
         
         items.append({
             "product_id": item["product_id"],
-            "name": item["name"],
+            "nome": item["nome"],
             "quantity": item["quantity"],
             "unit_price": item["unit_price"],
             "total_price": item_total

@@ -31,7 +31,7 @@ class CartItemCreate(BaseModel):
 
 class CartItemResponse(CartItemCreate):
     """Resposta para itens do carrinho"""
-    name: str
+    name: str = Field(..., alias="nome")
     unit_price: float
     total_price: float
 
