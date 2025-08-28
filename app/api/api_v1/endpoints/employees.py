@@ -1,22 +1,28 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from typing import List, Any
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
+
 from app.schemas.employee import EmployeeCreate, EmployeeUpdate, EmployeeResponse
 from app.models.employee import Employee
 from app.core.database import get_db
+from app.core.security import get_password_hash
 
 router = APIRouter()
 
 @router.get("/", response_model=List[EmployeeResponse])
 async def get_employees(db: Session = Depends(get_db)) -> Any:
-    """Listar todos os funcionários"""
+    """Listar todos os funcionários ativos"""
     employees = db.query(Employee).filter(Employee.is_active == True).all()
     return employees
 
 @router.get("/{employee_id}", response_model=EmployeeResponse)
 async def get_employee(employee_id: int, db: Session = Depends(get_db)) -> Any:
     """Obter funcionário por ID"""
-    employee = db.query(Employee).filter(Employee.id == employee_id, Employee.is_active == True).first()
+    employee = db.query(Employee).filter(
+        Employee.id == employee_id, 
+        Employee.is_active == True
+    ).first()
     
     if not employee:
         raise HTTPException(
@@ -29,29 +35,51 @@ async def get_employee(employee_id: int, db: Session = Depends(get_db)) -> Any:
 @router.post("/", response_model=EmployeeResponse, status_code=status.HTTP_201_CREATED)
 async def create_employee(employee_data: EmployeeCreate, db: Session = Depends(get_db)) -> Any:
     """Criar novo funcionário"""
-    # Verificar se já existe funcionário com o mesmo CPF
+    # Verificar se já existe funcionário com o mesmo username
     existing_employee = db.query(Employee).filter(
-        Employee.cpf == employee_data.cpf,
+        Employee.username == employee_data.username,
         Employee.is_active == True
     ).first()
     
     if existing_employee:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Já existe um funcionário com este CPF"
+            detail="Já existe um funcionário com este username"
         )
     
-    new_employee = Employee(**employee_data.model_dump())
-    db.add(new_employee)
-    db.commit()
-    db.refresh(new_employee)
+    # Hash da senha
+    hashed_password = get_password_hash(employee_data.password)
     
-    return new_employee
+    # Criar o funcionário
+    employee_dict = employee_data.model_dump(exclude={"password"})
+    new_employee = Employee(
+        **employee_dict,
+        password_hash=hashed_password
+    )
+    
+    try:
+        db.add(new_employee)
+        db.commit()
+        db.refresh(new_employee)
+        return new_employee
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Erro ao criar funcionário"
+        )
 
 @router.put("/{employee_id}", response_model=EmployeeResponse)
-async def update_employee(employee_id: int, employee_data: EmployeeUpdate, db: Session = Depends(get_db)) -> Any:
-    """Atualizar funcionário existente"""
-    employee = db.query(Employee).filter(Employee.id == employee_id, Employee.is_active == True).first()
+async def update_employee(
+    employee_id: int, 
+    employee_data: EmployeeUpdate, 
+    db: Session = Depends(get_db)
+) -> Any:
+    """Atualizar funcionário"""
+    employee = db.query(Employee).filter(
+        Employee.id == employee_id,
+        Employee.is_active == True
+    ).first()
     
     if not employee:
         raise HTTPException(
@@ -59,33 +87,34 @@ async def update_employee(employee_id: int, employee_data: EmployeeUpdate, db: S
             detail="Funcionário não encontrado"
         )
     
-    # Verificar se o novo CPF já existe em outro funcionário
-    if employee_data.cpf:
-        existing_employee = db.query(Employee).filter(
-            Employee.cpf == employee_data.cpf,
-            Employee.id != employee_id,
-            Employee.is_active == True
-        ).first()
-        
-        if existing_employee:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Já existe um funcionário com este CPF"
-            )
+    # Atualizar campos fornecidos
+    update_data = employee_data.model_dump(exclude_unset=True)
     
-    # Atualizar campos
-    for field, value in employee_data.model_dump(exclude_unset=True).items():
+    # Se uma nova senha for fornecida, fazer o hash
+    if 'password' in update_data and update_data['password']:
+        update_data['password_hash'] = get_password_hash(update_data.pop('password'))
+    
+    for field, value in update_data.items():
         setattr(employee, field, value)
     
-    db.commit()
-    db.refresh(employee)
-    
-    return employee
+    try:
+        db.commit()
+        db.refresh(employee)
+        return employee
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Erro ao atualizar funcionário"
+        )
 
 @router.delete("/{employee_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_employee(employee_id: int, db: Session = Depends(get_db)):
+async def delete_employee(employee_id: int, db: Session = Depends(get_db)) -> None:
     """Deletar funcionário (soft delete)"""
-    employee = db.query(Employee).filter(Employee.id == employee_id, Employee.is_active == True).first()
+    employee = db.query(Employee).filter(
+        Employee.id == employee_id,
+        Employee.is_active == True
+    ).first()
     
     if not employee:
         raise HTTPException(
@@ -95,4 +124,12 @@ async def delete_employee(employee_id: int, db: Session = Depends(get_db)):
     
     # Soft delete
     employee.is_active = False
-    db.commit()
+    
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erro ao remover funcionário"
+        )

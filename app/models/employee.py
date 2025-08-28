@@ -1,34 +1,28 @@
-from sqlalchemy import Column, String, Text, Boolean, Date, Numeric, ForeignKey
+from sqlalchemy import Column, String, Boolean, Numeric, Integer, ForeignKey
 from sqlalchemy.orm import relationship
 from .base import BaseModel
+from .user import User  # Importamos o User para o relacionamento
 
 class Employee(BaseModel):
-    """Modelo para funcionários do sistema"""
+    """Modelo simplificado para funcionários do sistema"""
     __tablename__ = "employees"
     
-    name = Column(String(200), nullable=False, index=True)
-    email = Column(String(100), unique=True, index=True, nullable=True)
-    phone = Column(String(20), nullable=True)
-    cpf = Column(String(14), unique=True, index=True, nullable=False)
-    
-    # Informações profissionais
-    position = Column(String(100), nullable=False)
-    department = Column(String(100), nullable=True)
-    hire_date = Column(Date, nullable=False)
+    # Informações básicas
+    full_name = Column(String(200), nullable=False, index=True)
+    username = Column(String(50), unique=True, nullable=False, index=True)
+    password_hash = Column(String(255), nullable=False)
     salary = Column(Numeric(10, 2), nullable=True)
     
-    # Endereço
-    address = Column(Text, nullable=True)
-    city = Column(String(100), nullable=True)
-    state = Column(String(100), nullable=True)
-    zip_code = Column(String(10), nullable=True)
-    
-    # Status
-    is_active = Column(Boolean, default=True, nullable=False)
+    # Permissões
+    is_admin = Column(Boolean, default=False, nullable=False)
     can_sell = Column(Boolean, default=True, nullable=False)
+    can_manage_inventory = Column(Boolean, default=False, nullable=False)
+    can_manage_expenses = Column(Boolean, default=False, nullable=False)
     
     # Relacionamentos
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    user = relationship("User", back_populates="employee")
     sales = relationship("Sale", back_populates="employee")
     
     def __repr__(self):
-        return f"<Employee(name={self.name}, position={self.position})>"
+        return f"<Employee(username={self.username}, is_admin={self.is_admin}>"

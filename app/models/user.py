@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Boolean, Enum, Numeric
+from sqlalchemy import Column, String, Boolean, Enum, Numeric, ForeignKey
 from sqlalchemy.orm import relationship
 import enum
 from passlib.context import CryptContext
@@ -36,6 +36,7 @@ class User(BaseModel):
     
     # Relacionamentos
     sales = relationship("Sale", back_populates="user")
+    employee = relationship("Employee", back_populates="user", uselist=False)
     
     def set_password(self, password: str):
         """Set hashed password"""

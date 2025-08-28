@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from typing import Optional
+from passlib.context import CryptContext
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -11,8 +12,19 @@ from app.core.config import settings
 from app.models.user import User
 from app.core.database import get_db
 
+# Configuração do bcrypt para hash de senhas
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 # OAuth2 scheme for token authentication
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
+
+def get_password_hash(password: str) -> str:
+    """Generate password hash"""
+    return pwd_context.hash(password)
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify a password against a hash"""
+    return pwd_context.verify(plain_password, hashed_password)
 
 class TokenData(BaseModel):
     username: Optional[str] = None
