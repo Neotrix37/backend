@@ -210,6 +210,7 @@ async def login_for_access_token(
     return {
         "access_token": access_token,
         "token_type": "bearer",
+        "expires_in": int(access_token_expires.total_seconds()),
         "user": {
             "username": user.username,
             "email": user.email,

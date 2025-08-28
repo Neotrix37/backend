@@ -6,29 +6,34 @@ class Product(BaseModel):
     """Modelo para produtos do sistema"""
     __tablename__ = "products"
     
-    name = Column(String(200), nullable=False, index=True)
-    description = Column(Text, nullable=True)
-    sku = Column(String(50), unique=True, index=True, nullable=False)
-    
-    # Preços
-    cost_price = Column(Numeric(10, 2), nullable=False, default=0)
-    sale_price = Column(Numeric(10, 2), nullable=False, default=0)
-    
-    # Estoque
-    current_stock = Column(Integer, nullable=False, default=0)
-    min_stock = Column(Integer, nullable=False, default=0)
-    
-    # Categoria
-    category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
-    
-    # Status
-    is_active = Column(Boolean, default=True, nullable=False)
-    venda_por_peso = Column(Boolean, default=False, nullable=False)  # Se é vendido por peso/kg
+    # Código e identificação
+    codigo = Column('sku', String(50), unique=True, index=True, nullable=False)
     
     # Relacionamentos
+    category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
     category = relationship("Category", back_populates="products")
-    sale_items = relationship("SaleItem", back_populates="product")
+    
+    # Informações básicas
+    nome = Column('name', String(200), nullable=False, index=True)
+    descricao = Column('description', Text, nullable=True)
+    
+    # Preços
+    preco_compra = Column('cost_price', Numeric(10, 2), nullable=False, default=0)
+    preco_venda = Column('sale_price', Numeric(10, 2), nullable=False, default=0)
+    
+    # Estoque
+    estoque = Column('current_stock', Integer, nullable=False, default=0)
+    estoque_minimo = Column('min_stock', Integer, nullable=False, default=0)
+    
+    # Configurações
+    venda_por_peso = Column(Boolean, default=False, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    
+    # Relacionamentos adicionais
+    sale_items = relationship("SaleItem", back_populates="product", 
+                            passive_deletes='all',  # Não tenta excluir os itens
+                            foreign_keys='SaleItem.product_id')
     inventory_movements = relationship("Inventory", back_populates="product")
     
     def __repr__(self):
-        return f"<Product(name={self.name}, sku={self.sku}>"
+        return f"<Product(nome={self.nome}, codigo={self.codigo}>"
