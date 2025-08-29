@@ -75,6 +75,9 @@ async def checkout(
     db: Session = Depends(get_db)
 ) -> Any:
     """Finaliza a compra e cria a venda"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
     cart = get_or_create_cart(session_id)
     
     if not cart:
@@ -83,70 +86,124 @@ async def checkout(
             detail="O carrinho está vazio"
         )
     
-    # Cálculo dos totais
-    cart_data = _calculate_cart_totals(cart)
+    logger.info(f"Iniciando checkout para carrinho: {cart}")
     
-    # Cria a venda
-    sale = Sale(
-        sale_number=f"V{datetime.now().strftime('%Y%m%d%H%M%S')}",
-        status=SaleStatus.CONCLUIDA,
-        subtotal=cart_data.subtotal,
-        tax_amount=cart_data.tax_amount,
-        total_amount=cart_data.total,
-        payment_method=PaymentMethod(checkout_data.payment_method),
-        customer_id=checkout_data.customer_id,
-        notes=checkout_data.notes
-    )
-    
-    db.add(sale)
-    db.commit()
-    db.refresh(sale)
-    
-    # Adiciona os itens da venda
-    for item in cart_data.items:
-        sale_item = SaleItem(
-            sale_id=sale.id,
-            product_id=item.product_id,
-            quantity=item.quantity,
-            unit_price=item.unit_price,
-            total_price=item.total_price
-        )
-        db.add(sale_item)
-    
-    db.commit()
-    
-    # Limpa o carrinho após a finalização
-    cart_store.pop(session_id, None)
-    
-    return sale
-
-def _calculate_cart_totals(cart: List[Dict[str, Any]]) -> CartResponse:
-    """Calcula os totais do carrinho"""
-    items = []
-    subtotal = 0.0
-    
-    # Calcula subtotal e itens
-    for item in cart:
-        item_total = item["unit_price"] * item["quantity"]
-        item["total_price"] = item_total
-        subtotal += item_total
+    try:
+        # Cálculo dos totais (sem IVA)
+        cart_data = _calculate_cart_totals(cart)
+        logger.info(f"Totais calculados: {cart_data.__dict__}")
         
+        # Cria a venda
+        sale = Sale(
+            sale_number=f"V{datetime.now().strftime('%Y%m%d%H%M%S')}",
+            status=SaleStatus.CONCLUIDA,
+            subtotal=float(cart_data.subtotal),
+            tax_amount=0.0,  # Sem IVA
+            total_amount=float(cart_data.subtotal),  # Total igual ao subtotal
+            payment_method=PaymentMethod(checkout_data.payment_method),
+            customer_id=checkout_data.customer_id,
+            notes=checkout_data.notes
+        )
+        
+        db.add(sale)
+        db.flush()  # Gera o ID da venda sem fazer commit
+        logger.info(f"Venda criada com ID: {sale.id}")
+        
+        # Adiciona os itens da venda e atualiza o estoque
+        for item in cart_data.items:
+            logger.info(f"Processando item: {item}")
+            
+            # Busca o produto para atualizar o estoque
+            product = db.query(Product).filter(
+                Product.id == item["product_id"],
+                Product.is_active == True
+            ).with_for_update().first()  # Bloqueia o registro para atualização
+            
+            if not product:
+                db.rollback()
+                logger.error(f"Produto com ID {item['product_id']} não encontrado")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Produto com ID {item['product_id']} não encontrado"
+                )
+            
+            logger.info(f"Produto encontrado: {product.nome}, Estoque atual: {product.estoque}")
+            
+            # Verifica se há estoque suficiente
+            if product.estoque < item["quantity"]:
+                db.rollback()
+                logger.error(f"Estoque insuficiente para o produto {product.nome}. Estoque atual: {product.estoque}, Quantidade solicitada: {item['quantity']}")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Estoque insuficiente para o produto {product.nome}"
+                )
+            
+            # Atualiza o estoque
+            novo_estoque = product.estoque - item["quantity"]
+            logger.info(f"Atualizando estoque do produto {product.id} de {product.estoque} para {novo_estoque}")
+            product.estoque = novo_estoque
+            db.add(product)
+            
+            # Cria o item da venda
+            sale_item = SaleItem(
+                sale_id=sale.id,
+                product_id=item["product_id"],
+                quantity=item["quantity"],
+                unit_price=float(item["unit_price"]),
+                total_price=float(item["total_price"])
+            )
+            db.add(sale_item)
+            logger.info(f"Item de venda criado: {sale_item}")
+        
+        # Confirma a transação
+        db.commit()
+        logger.info("Transação confirmada com sucesso")
+        
+        # Atualiza o objeto de venda para garantir que todos os dados estejam disponíveis
+        db.refresh(sale)
+        
+        # Limpa o carrinho após a finalização
+        cart_store.pop(session_id, None)
+        logger.info("Carrinho limpo após finalização")
+        
+        return sale
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao processar a venda: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao processar a venda: {str(e)}"
+        )
+
+def _calculate_cart_totals(cart: List[Dict[str, Any]]) -> Any:
+    """Calcula os totais do carrinho (sem IVA)"""
+    class CartTotals:
+        def __init__(self, items=None, subtotal=0, tax_amount=0, total=0):
+            self.items = items or []
+            self.subtotal = subtotal
+            self.tax_amount = tax_amount
+            self.total = total
+    
+    if not cart:
+        return CartTotals()
+    
+    items = []
+    subtotal = 0
+    
+    for item in cart:
+        item_total = float(item["unit_price"]) * int(item["quantity"])
         items.append({
             "product_id": item["product_id"],
             "nome": item["nome"],
-            "quantity": item["quantity"],
-            "unit_price": item["unit_price"],
+            "quantity": int(item["quantity"]),
+            "unit_price": float(item["unit_price"]),
             "total_price": item_total
         })
+        subtotal += item_total
     
-    # Cálculo de impostos (exemplo: 10%)
-    tax_rate = 0.10
-    tax_amount = subtotal * tax_rate
-    total = subtotal + tax_amount
+    # Sem IVA
+    tax_amount = 0
+    total = subtotal
     
-    return CartResponse(
-        items=items,
-        subtotal=round(subtotal, 2),
-        tax_amount=round(tax_amount, 2),
-        total=round(total, 2)
-    )
+    return CartTotals(items, subtotal, tax_amount, total)
