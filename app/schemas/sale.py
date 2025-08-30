@@ -27,13 +27,30 @@ class PaymentMethod(str, Enum):
 class CartItemCreate(BaseModel):
     """Esquema para adicionar item ao carrinho"""
     product_id: int
-    quantity: int = Field(gt=0, default=1)
+    quantity: float = Field(gt=0, default=1.0)  # Alterado para float para suportar decimais
+    is_weight_sale: bool = False  # Indica se é venda por peso
+    weight_in_kg: Optional[float] = Field(None, gt=0)  # Peso em kg para produtos vendidos por peso
+    custom_price: Optional[float] = Field(None, gt=0)  # Preço personalizado para venda por peso
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "product_id": 1,
+                "quantity": 1.5,
+                "is_weight_sale": True,
+                "weight_in_kg": 0.5,
+                "custom_price": 37.5
+            }
+        }
 
 class CartItemResponse(CartItemCreate):
     """Resposta para itens do carrinho"""
     name: str = Field(..., alias="nome")
     unit_price: float
     total_price: float
+    is_weight_sale: bool = False  # Adicionado para o frontend saber se é venda por peso
+    weight_in_kg: Optional[float] = None
+    custom_price: Optional[float] = None
 
 class CartResponse(BaseModel):
     """Resposta com o carrinho de compras"""

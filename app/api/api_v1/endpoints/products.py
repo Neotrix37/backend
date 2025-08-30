@@ -17,12 +17,16 @@ async def get_products(
 	limit: int = Query(100, ge=1, le=1000, description="Número máximo de registros"),
 	search: Optional[str] = Query(None, description="Termo de busca por nome ou código"),
 	category_id: Optional[int] = Query(None, description="Filtrar por categoria"),
-	active_only: bool = Query(True, description="Mostrar apenas produtos ativos"),
+	include_inactive: bool = Query(False, description="Incluir produtos inativos"),
 	db: Session = Depends(get_db)
 ) -> Any:
 	query = select(Product)
-	if active_only:
+	
+	# Filtra por status ativo/inativo
+	if not include_inactive:
 		query = query.where(Product.is_active == True)  # noqa: E712
+	
+	# Outros filtros
 	if category_id is not None:
 		query = query.where(Product.category_id == category_id)
 	if search:
@@ -167,8 +171,11 @@ async def update_product(product_id: int, product_data: ProductUpdate, db: Sessi
 	return product
 
 
-@router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_product(product_id: int, db: Session = Depends(get_db)) -> None:
+@router.delete("/{product_id}", status_code=status.HTTP_200_OK)
+async def delete_product(product_id: int, db: Session = Depends(get_db)) -> dict:
+	"""
+	Desativa um produto (exclusão lógica).
+	"""
 	product = db.get(Product, product_id)
 	if not product:
 		raise HTTPException(
@@ -176,14 +183,26 @@ async def delete_product(product_id: int, db: Session = Depends(get_db)) -> None
 			detail="Produto não encontrado"
 		)
 
+	if not product.is_active:
+		raise HTTPException(
+			status_code=status.HTTP_400_BAD_REQUEST,
+			detail="Este produto já está desativado"
+		)
+
 	try:
-		db.delete(product)
+		# Marca como inativo em vez de excluir
+		product.is_active = False
 		db.commit()
+		return {
+			"status": "success", 
+			"message": "Produto desativado com sucesso",
+			"product_id": product_id
+		}
 	except Exception as e:
 		db.rollback()
 		raise HTTPException(
 			status_code=status.HTTP_400_BAD_REQUEST,
-			detail=f"Erro ao excluir produto: {str(e)}"
+			detail=f"Erro ao desativar produto: {str(e)}"
 		)
 
 
@@ -204,3 +223,38 @@ async def get_product_stock(product_id: int, db: Session = Depends(get_db)) -> d
 		"estoque_minimo": product.estoque_minimo,
 		"status_estoque": "CRÍTICO" if product.estoque <= product.estoque_minimo else "OK"
 	}
+
+
+@router.post("/{product_id}/activate", status_code=status.HTTP_200_OK)
+async def activate_product(product_id: int, db: Session = Depends(get_db)) -> dict:
+	"""
+	Reativa um produto previamente desativado.
+	"""
+	product = db.get(Product, product_id)
+	if not product:
+		raise HTTPException(
+			status_code=status.HTTP_404_NOT_FOUND,
+			detail="Produto não encontrado"
+		)
+
+	if product.is_active:
+		raise HTTPException(
+			status_code=status.HTTP_400_BAD_REQUEST,
+			detail="Este produto já está ativo"
+		)
+
+	try:
+		# Reativa o produto
+		product.is_active = True
+		db.commit()
+		return {
+			"status": "success", 
+			"message": "Produto reativado com sucesso",
+			"product_id": product_id
+		}
+	except Exception as e:
+		db.rollback()
+		raise HTTPException(
+			status_code=status.HTTP_400_BAD_REQUEST,
+			detail=f"Erro ao reativar produto: {str(e)}"
+		)
