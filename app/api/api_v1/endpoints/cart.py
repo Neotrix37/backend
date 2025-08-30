@@ -176,6 +176,45 @@ async def checkout(
             detail=f"Erro ao processar a venda: {str(e)}"
         )
 
+@router.delete("/cart/items/{product_id}", response_model=dict)
+async def remove_item_from_cart(
+    product_id: int,
+    session_id: str = "default",
+) -> dict:
+    """Remove um item específico do carrinho"""
+    cart = get_or_create_cart(session_id)
+    
+    if not cart or not cart:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Carrinho não encontrado ou vazio"
+        )
+    
+    initial_count = len(cart)
+    cart[:] = [item for item in cart if item["product_id"] != product_id]
+    
+    if len(cart) == initial_count:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Produto com ID {product_id} não encontrado no carrinho"
+        )
+    
+    return {"status": "success", "message": f"Produto {product_id} removido do carrinho"}
+
+@router.delete("/cart", response_model=dict)
+async def clear_cart(
+    session_id: str = "default",
+) -> dict:
+    """Remove todos os itens do carrinho"""
+    if session_id in cart_store:
+        cart_store.pop(session_id)
+        return {"status": "success", "message": "Carrinho limpo com sucesso"}
+    
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="Carrinho não encontrado"
+    )
+
 def _calculate_cart_totals(cart: List[Dict[str, Any]]) -> Any:
     """Calcula os totais do carrinho (sem IVA)"""
     class CartTotals:
