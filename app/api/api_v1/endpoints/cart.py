@@ -182,14 +182,13 @@ async def remove_item_from_cart(
     session_id: str = "default",
 ) -> dict:
     """Remove um item específico do carrinho"""
-    cart = get_or_create_cart(session_id)
-    
-    if not cart or not cart:
+    if session_id not in cart_store or not cart_store[session_id]:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Carrinho não encontrado ou vazio"
         )
     
+    cart = cart_store[session_id]
     initial_count = len(cart)
     cart[:] = [item for item in cart if item["product_id"] != product_id]
     
@@ -207,7 +206,7 @@ async def clear_cart(
 ) -> dict:
     """Remove todos os itens do carrinho"""
     if session_id in cart_store:
-        cart_store.pop(session_id)
+        cart_store[session_id] = []  # Mantém a estrutura mas limpa os itens
         return {"status": "success", "message": "Carrinho limpo com sucesso"}
     
     raise HTTPException(
