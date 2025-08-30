@@ -9,7 +9,7 @@ from app.models.sale import Sale, SaleStatus
 from app.models.sale_item import SaleItem
 from app.schemas.sale import CartItemCreate, CartResponse, CheckoutRequest, SaleResponse, PaymentMethod, CartItemResponse
 from app.models.user import User
-from app.api.dependencies import get_current_active_user
+from app.core.security import get_current_active_user  # Atualizado para o caminho correto
 
 router = APIRouter(tags=["cart"])
 
