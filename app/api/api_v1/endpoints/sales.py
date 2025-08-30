@@ -1,7 +1,7 @@
 import logging
 from fastapi import APIRouter, HTTPException, status, Depends, Query
 from typing import List, Any, Optional
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from datetime import datetime
 
 from app.schemas.sale import SaleResponse, CheckoutRequest, SaleStatus
@@ -9,6 +9,7 @@ from app.models.sale import Sale
 from app.core.database import get_db
 from app.core.security import get_current_active_user
 from app.models.user import User
+from app.models.sale_item import SaleItem
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -20,10 +21,51 @@ async def get_sales(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ) -> Any:
-    """List all sales"""
+    """List all sales with their items and product details"""
     try:
-        sales = db.query(Sale).filter(Sale.is_active == True).offset(skip).limit(limit).all()
-        return sales
+        # Carrega as vendas com seus itens e produtos relacionados
+        sales = db.query(Sale)\
+            .options(
+                joinedload(Sale.items)\
+                .joinedload(SaleItem.product)\
+            )\
+            .filter(Sale.is_active == True)\
+            .order_by(Sale.created_at.desc())\
+            .offset(skip)\
+            .limit(limit)\
+            .all()
+            
+        # Prepara a resposta incluindo os itens com detalhes do produto
+        result = []
+        for sale in sales:
+            sale_dict = {
+                "id": sale.id,
+                "sale_number": sale.sale_number,
+                "status": sale.status,
+                "subtotal": float(sale.subtotal) if sale.subtotal else 0.0,
+                "tax_amount": float(sale.tax_amount) if sale.tax_amount else 0.0,
+                "discount_amount": float(sale.discount_amount) if sale.discount_amount else 0.0,
+                "total_amount": float(sale.total_amount) if sale.total_amount else 0.0,
+                "payment_method": sale.payment_method,
+                "created_at": sale.created_at,
+                "items": [
+                    {
+                        "id": item.id,
+                        "product_id": item.product_id,
+                        "product_name": item.product.nome if item.product else "Produto não encontrado",
+                        "quantity": float(item.quantity) if item.quantity else 0.0,
+                        "unit_price": float(item.unit_price) if item.unit_price else 0.0,
+                        "total_price": float(item.total_price) if item.total_price else 0.0,
+                        "is_weight_sale": item.is_weight_sale if hasattr(item, 'is_weight_sale') else False,
+                        "weight_in_kg": float(item.weight_in_kg) if hasattr(item, 'weight_in_kg') and item.weight_in_kg else None,
+                        "custom_price": float(item.custom_price) if hasattr(item, 'custom_price') and item.custom_price else None,
+                        "created_at": item.created_at
+                    } for item in sale.items
+                ]
+            }
+            result.append(sale_dict)
+            
+        return result
     except Exception as e:
         logger.error(f"Error fetching sales: {e}", exc_info=True)
         raise HTTPException(
@@ -37,12 +79,48 @@ async def get_sale(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ) -> Any:
-    """Get sale by ID"""
+    """Get sale by ID with items and product details"""
     try:
-        sale = db.query(Sale).filter(Sale.id == sale_id, Sale.is_active == True).first()
+        # Carrega a venda com seus itens e produtos relacionados
+        sale = db.query(Sale)\
+            .options(
+                joinedload(Sale.items)\
+                .joinedload(SaleItem.product)\
+            )\
+            .filter(Sale.id == sale_id, Sale.is_active == True)\
+            .first()
+            
         if not sale:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sale not found")
-        return sale
+        
+        # Prepara a resposta incluindo os itens com detalhes do produto
+        result = {
+            "id": sale.id,
+            "sale_number": sale.sale_number,
+            "status": sale.status,
+            "subtotal": float(sale.subtotal) if sale.subtotal else 0.0,
+            "tax_amount": float(sale.tax_amount) if sale.tax_amount else 0.0,
+            "discount_amount": float(sale.discount_amount) if sale.discount_amount else 0.0,
+            "total_amount": float(sale.total_amount) if sale.total_amount else 0.0,
+            "payment_method": sale.payment_method,
+            "created_at": sale.created_at,
+            "items": [
+                {
+                    "id": item.id,
+                    "product_id": item.product_id,
+                    "product_name": item.product.nome if item.product else "Produto não encontrado",
+                    "quantity": float(item.quantity) if item.quantity else 0.0,
+                    "unit_price": float(item.unit_price) if item.unit_price else 0.0,
+                    "total_price": float(item.total_price) if item.total_price else 0.0,
+                    "is_weight_sale": item.is_weight_sale if hasattr(item, 'is_weight_sale') else False,
+                    "weight_in_kg": float(item.weight_in_kg) if hasattr(item, 'weight_in_kg') and item.weight_in_kg else None,
+                    "custom_price": float(item.custom_price) if hasattr(item, 'custom_price') and item.custom_price else None,
+                    "created_at": item.created_at
+                } for item in sale.items
+            ]
+        }
+            
+        return result
     except HTTPException:
         raise
     except Exception as e:

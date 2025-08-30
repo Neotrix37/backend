@@ -65,14 +65,35 @@ class CheckoutRequest(BaseModel):
     customer_id: Optional[int] = None
     notes: Optional[str] = None
 
+class SaleItemResponse(BaseModel):
+    """Resposta para itens da venda"""
+    id: int
+    product_id: int
+    product_name: str = Field(..., alias="product.nome")
+    quantity: float
+    unit_price: float
+    total_price: float
+    is_weight_sale: bool = False
+    weight_in_kg: Optional[float] = None
+    custom_price: Optional[float] = None
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+        populate_by_name = True
+
 class SaleResponse(BaseModel):
     """Resposta da venda finalizada"""
     id: int
     sale_number: str
     status: SaleStatus
+    subtotal: float
+    tax_amount: float
+    discount_amount: float
     total_amount: float
     payment_method: str
     created_at: datetime
+    items: List[SaleItemResponse] = []
     
     class Config:
         from_attributes = True
