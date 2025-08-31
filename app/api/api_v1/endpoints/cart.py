@@ -291,32 +291,39 @@ async def checkout(
             detail=f"Erro ao processar a venda: {str(e)}"
         )
 
-@router.delete("/cart/items/{product_id}", response_model=dict)
+@router.delete("/items/{product_id}", response_model=dict)
 async def remove_item_from_cart(
     product_id: int,
-    session_id: str = Header(..., alias="X-Session-ID")
+    session_id: str = Header(..., alias="X-Session-ID"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
 ) -> dict:
     """Remove um item específico do carrinho"""
     try:
         logger.info(f"Removendo item do carrinho. Sessão: {session_id}, Produto: {product_id}")
         
-        if session_id not in cart_store or not cart_store[session_id]["items"]:
-            logger.error("Carrinho não encontrado ou vazio")
-            raise HTTPException(
-                status_code=404,
-                detail="Carrinho não encontrado ou vazio"
-            )
+        if session_id not in cart_store or not cart_store.get(session_id, {}).get("items"):
+            logger.info("Carrinho não encontrado ou vazio")
+            return {
+                "status": "success", 
+                "message": "Carrinho não encontrado ou já está vazio",
+                "items": []
+            }
         
         cart = cart_store[session_id]
         initial_count = len(cart["items"])
-        cart["items"][:] = [item for item in cart["items"] if item["product_id"] != product_id]
+        cart["items"][:] = [
+            item for item in cart["items"] 
+            if str(item["product_id"]) != str(product_id)
+        ]
         
         if len(cart["items"]) == initial_count:
-            logger.error(f"Produto com ID {product_id} não encontrado no carrinho")
-            raise HTTPException(
-                status_code=404,
-                detail=f"Produto com ID {product_id} não encontrado no carrinho"
-            )
+            logger.info(f"Produto com ID {product_id} não encontrado no carrinho")
+            return {
+                "status": "success",
+                "message": f"Produto {product_id} não encontrado no carrinho",
+                "items": cart["items"]
+            }
         
         # Recalcular totais
         cart["subtotal"] = sum(item["total_price"] for item in cart["items"])
@@ -324,48 +331,57 @@ async def remove_item_from_cart(
         
         logger.info(f"Carrinho após remoção: {cart}")
         
-        return {"status": "success", "message": f"Produto {product_id} removido do carrinho"}
+        return {
+            "status": "success", 
+            "message": f"Produto {product_id} removido do carrinho",
+            "items": cart["items"]
+        }
         
-    except HTTPException as he:
-        logger.error(f"Erro HTTP: {str(he.detail)}")
-        raise
     except Exception as e:
-        logger.error(f"Erro inesperado: {str(e)}", exc_info=True)
+        logger.error(f"Erro inesperado ao remover item do carrinho: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail=f"Erro ao remover o item do carrinho: {str(e)}"
         )
 
-@router.delete("/cart", response_model=dict)
+@router.delete("", response_model=dict)
 async def clear_cart(
-    session_id: str = Header(..., alias="X-Session-ID")
+    session_id: str = Header(..., alias="X-Session-ID"),
+    current_user: User = Depends(get_current_active_user)
 ) -> dict:
     """Remove todos os itens do carrinho"""
     try:
         logger.info(f"Limpando carrinho. Sessão: {session_id}")
         
-        if session_id in cart_store:
-            cart_store[session_id] = {
-                "items": [],
-                "created_at": datetime.utcnow(),
-                "user_id": cart_store[session_id]["user_id"],
-                "subtotal": 0.0,
-                "total": 0.0
+        if session_id not in cart_store:
+            logger.info("Carrinho não encontrado")
+            return {
+                "status": "success",
+                "message": "Carrinho não encontrado ou já está vazio",
+                "items": []
             }
-            logger.info("Carrinho limpo com sucesso")
-            return {"status": "success", "message": "Carrinho limpo com sucesso"}
         
-        logger.error("Carrinho não encontrado")
-        raise HTTPException(
-            status_code=404,
-            detail="Carrinho não encontrado"
-        )
+        # Salva o user_id antes de limpar
+        user_id = cart_store[session_id].get("user_id", current_user.id)
         
-    except HTTPException as he:
-        logger.error(f"Erro HTTP: {str(he.detail)}")
-        raise
+        # Cria um novo carrinho vazio
+        cart_store[session_id] = {
+            "items": [],
+            "created_at": datetime.utcnow(),
+            "user_id": user_id,
+            "subtotal": 0.0,
+            "total": 0.0
+        }
+        
+        logger.info("Carrinho limpo com sucesso")
+        return {
+            "status": "success",
+            "message": "Carrinho limpo com sucesso",
+            "items": []
+        }
+        
     except Exception as e:
-        logger.error(f"Erro inesperado: {str(e)}", exc_info=True)
+        logger.error(f"Erro inesperado ao limpar carrinho: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail=f"Erro ao limpar o carrinho: {str(e)}"
