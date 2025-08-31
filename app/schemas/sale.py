@@ -97,3 +97,50 @@ class SaleResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+class SaleCreate(BaseModel):
+    """Schema para criar uma nova venda"""
+    customer_id: Optional[int] = None
+    payment_method: PaymentMethod
+    notes: Optional[str] = None
+    items: List[CartItemCreate]
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "customer_id": 1,
+                "payment_method": "DINHEIRO",
+                "notes": "Cliente solicitou nota fiscal",
+                "items": [
+                    {
+                        "product_id": 1,
+                        "quantity": 2,
+                        "is_weight_sale": False
+                    },
+                    {
+                        "product_id": 2,
+                        "quantity": 1.5,
+                        "is_weight_sale": True,
+                        "weight_in_kg": 1.5,
+                        "custom_price": 75.50
+                    }
+                ]
+            }
+        }
+
+class SaleUpdate(BaseModel):
+    """Schema para atualizar uma venda existente"""
+    status: Optional[SaleStatus] = None
+    payment_method: Optional[PaymentMethod] = None
+    notes: Optional[str] = None
+    customer_id: Optional[int] = None
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "status": "concluida",
+                "payment_method": "MPESA",
+                "notes": "Pagamento confirmado via M-Pesa",
+                "customer_id": 1
+            }
+        }

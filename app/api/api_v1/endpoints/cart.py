@@ -12,7 +12,7 @@ from app.models.product import Product
 from app.models.sale import Sale, SaleStatus
 from app.models.sale_item import SaleItem
 from app.schemas.sale import CartItemCreate, CartResponse, CheckoutRequest, SaleResponse, PaymentMethod, CartItemResponse
-from app.models.user import User
+from app.models.user import User as UserModel
 from app.core.security import get_current_active_user
 
 router = APIRouter(tags=["cart"])
@@ -37,7 +37,7 @@ async def add_to_cart(
     item: CartItemCreate,
     session_id: str = Header(..., alias="X-Session-ID"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: UserModel = Depends(get_current_active_user)
 ):
     """Adiciona um item ao carrinho"""
     try:
@@ -176,7 +176,7 @@ async def checkout(
     checkout_data: CheckoutRequest,
     session_id: str = Header(..., alias="X-Session-ID"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: UserModel = Depends(get_current_active_user)
 ):
     """Finaliza a compra e cria a venda"""
     try:
@@ -296,7 +296,7 @@ async def remove_item_from_cart(
     product_id: int,
     session_id: str = Header(..., alias="X-Session-ID"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: UserModel = Depends(get_current_active_user)
 ) -> dict:
     """Remove um item específico do carrinho"""
     try:
@@ -347,7 +347,7 @@ async def remove_item_from_cart(
 @router.delete("", response_model=dict)
 async def clear_cart(
     session_id: str = Header(..., alias="X-Session-ID"),
-    current_user: User = Depends(get_current_active_user)
+    current_user: UserModel = Depends(get_current_active_user)
 ) -> dict:
     """Remove todos os itens do carrinho"""
     try:

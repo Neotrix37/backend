@@ -2,6 +2,7 @@ from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 from decimal import Decimal
 from enum import Enum
+from datetime import datetime
 from .base import BaseResponse, BaseCreate, BaseUpdate
 
 class UserRole(str, Enum):
@@ -53,7 +54,17 @@ class UserResponse(BaseResponse):
     full_name: str
     role: UserRole
     is_superuser: bool
-    salary: Optional[Decimal]
+    salary: Optional[Decimal] = None
+    is_active: bool = True
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+        json_encoders = {
+            Decimal: lambda v: str(round(float(v), 2)) if v is not None else None,
+            datetime: lambda v: v.isoformat()
+        }
 
 class UserLogin(BaseModel):
     username: str

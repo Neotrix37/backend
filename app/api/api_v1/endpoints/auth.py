@@ -11,7 +11,7 @@ from datetime import date
 from app.core.config import settings
 from app.core.database import get_db
 from app.schemas.user import UserCreate, UserResponse, UserLogin, Token
-from app.models.user import User, UserRole
+from app.models.user import User, UserRole  # Removido import do modelo UserModel
 from app.models.employee import Employee  # Adicionado import do modelo Employee
 
 router = APIRouter()

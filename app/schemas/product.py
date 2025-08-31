@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, validator, model_validator
+from pydantic import BaseModel, Field, validator
 from typing import Optional, Dict, Any, Union
 from decimal import Decimal
 from datetime import datetime
@@ -29,6 +29,18 @@ class ProductCreate(BaseCreate):
     class Config:
         populate_by_name = True
         from_attributes = True
+        json_encoders = {
+            Decimal: lambda v: str(round(float(v), 2))
+        }
+    
+    @validator('preco_compra', 'preco_venda', pre=True)
+    def parse_decimal(cls, v):
+        if isinstance(v, str):
+            try:
+                return Decimal(v.replace(',', '.'))
+            except (ValueError, TypeError):
+                pass
+        return v
     
     @validator('preco_venda')
     def preco_venda_maior_que_custo(cls, v, values):
@@ -61,54 +73,79 @@ class ProductUpdate(BaseUpdate):
     class Config:
         populate_by_name = True
         from_attributes = True
+        json_encoders = {
+            Decimal: lambda v: str(round(float(v), 2))
+        }
+    
+    @validator('preco_compra', 'preco_venda', pre=True)
+    def parse_decimal(cls, v):
+        if v is None:
+            return v
+        if isinstance(v, str):
+            try:
+                return Decimal(v.replace(',', '.'))
+            except (ValueError, TypeError):
+                pass
+        return v
+    
+    @validator('preco_venda')
+    def preco_venda_maior_que_custo(cls, v, values):
+        if v is not None and 'preco_compra' in values and values['preco_compra'] is not None:
+            if v <= values['preco_compra']:
+                raise ValueError('Preço de venda deve ser maior que o preço de compra')
+        return v
 
 class ProductResponse(BaseResponse):
-    # Identificação
+    # Código e identificação
     id: int
     created_at: datetime
     updated_at: datetime
     is_active: bool
-    
-    # Dados do produto
     codigo: str
     category_id: Optional[int] = None
+    
+    # Informações básicas
     nome: str
     descricao: Optional[str] = None
     
-    # Preços
-    preco_compra: str
-    preco_venda: str
+    # Preços (agora usando Decimal diretamente)
+    preco_compra: Decimal = Field(..., ge=0)
+    preco_venda: Decimal = Field(..., ge=0)
     
     # Estoque
     estoque: int
     estoque_minimo: int
-    
-    # Configurações
     venda_por_peso: bool = False
 
-    @model_validator(mode='before')
+    class Config:
+        from_attributes = True
+        json_encoders = {
+            Decimal: lambda v: str(round(float(v), 2))  # Converte Decimal para string com 2 casas decimais
+        }
+    
     @classmethod
-    def prepare_response(cls, data: Any) -> Any:
-        if not isinstance(data, dict):
-            # Se for um objeto SQLAlchemy, converte para dicionário
-            data_dict = {
-                'id': getattr(data, 'id', 0),
-                'created_at': getattr(data, 'created_at'),
-                'updated_at': getattr(data, 'updated_at'),
-                'is_active': getattr(data, 'is_active', True),
-                'codigo': getattr(data, 'codigo', getattr(data, 'sku', '')),
-                'category_id': getattr(data, 'category_id', None),
-                'nome': getattr(data, 'nome', getattr(data, 'name', '')),
-                'descricao': getattr(data, 'descricao', getattr(data, 'description', None)),
-                'preco_compra': format_decimal(getattr(data, 'preco_compra', getattr(data, 'cost_price', Decimal('0')))),
-                'preco_venda': format_decimal(getattr(data, 'preco_venda', getattr(data, 'sale_price', Decimal('0')))),
-                'estoque': getattr(data, 'estoque', getattr(data, 'current_stock', 0)),
-                'estoque_minimo': getattr(data, 'estoque_minimo', getattr(data, 'min_stock', 0)),
-                'venda_por_peso': getattr(data, 'venda_por_peso', False)
-            }
-            return data_dict
-        
-        # Se já for um dicionário, apenas garante que todos os campos estão presentes
+    def from_orm(cls, obj):
+        # Converte o objeto ORM para dicionário e garante que os decimais sejam tratados corretamente
+        data = {
+            'id': obj.id,
+            'created_at': obj.created_at,
+            'updated_at': obj.updated_at,
+            'is_active': obj.is_active,
+            'codigo': obj.codigo,
+            'category_id': obj.category_id,
+            'nome': obj.nome,
+            'descricao': obj.descricao,
+            'preco_compra': obj.preco_compra,
+            'preco_venda': obj.preco_venda,
+            'estoque': obj.estoque,
+            'estoque_minimo': obj.estoque_minimo,
+            'venda_por_peso': obj.venda_por_peso
+        }
+        return cls(**data)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]):
+        # Converte um dicionário para o modelo Pydantic
         field_mapping = {
             'sku': 'codigo',
             'name': 'nome',
@@ -136,8 +173,8 @@ class ProductResponse(BaseResponse):
         for price_field in ['preco_compra', 'preco_venda']:
             if price_field in result and isinstance(result[price_field], (Decimal, float, int)):
                 result[price_field] = format_decimal(result[price_field])
-                
-        return result
+        
+        return cls(**result)
 
     class Config:
         from_attributes = True
