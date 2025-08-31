@@ -23,6 +23,7 @@ app = FastAPI(
 origins = [
     "https://vuchada-cyan.vercel.app",
     "http://localhost:3000",  # Para desenvolvimento local
+    "http://localhost:5173",  # Porta padrão do Vite
 ]
 
 app.add_middleware(
