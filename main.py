@@ -20,18 +20,14 @@ app = FastAPI(
 )
 
 # Configuração CORS
-origins = [
-    "https://vuchada-cyan.vercel.app",
-    "http://localhost:3000",  # Para desenvolvimento local
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],  # Allow all origins
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["Content-Disposition"],
+    allow_methods=["*"],  # Allow all methods
+    allow_headers=["*"],  # Allow all headers
+    expose_headers=["*"],  # Expose all headers
+    max_age=86400,  # Cache preflight for 24 hours
 )
 
 # Global Exception Handler
