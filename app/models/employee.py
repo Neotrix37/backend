@@ -50,8 +50,18 @@ class Employee(BaseModel):
     
     def has_permission(self, permission: str) -> bool:
         """Verifica se o funcionário tem uma permissão específica"""
-        from app.models.user import ROLE_PERMISSIONS
-        return ROLE_PERMISSIONS.get(self.role, {}).get(permission, False)
+        from app.models.user import UserRole, ROLE_PERMISSIONS
+        
+        # Mapeia as roles do Employee para as roles do User
+        role_mapping = {
+            EmployeeRole.ADMIN: UserRole.ADMIN,
+            EmployeeRole.MANAGER: UserRole.MANAGER,
+            EmployeeRole.CASHIER: UserRole.CASHIER,
+            EmployeeRole.VIEWER: UserRole.VIEWER
+        }
+        
+        user_role = role_mapping.get(self.role, UserRole.VIEWER)
+        return ROLE_PERMISSIONS.get(user_role, {}).get(permission, False)
     
     def __repr__(self):
         return f"<Employee(username={self.username}, role={self.role}, is_active={self.is_active}>"

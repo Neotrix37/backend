@@ -24,15 +24,28 @@ origins = [
     "https://vuchada-cyan.vercel.app",
     "http://localhost:3000",  # Para desenvolvimento local
     "http://localhost:5173",  # Porta padrão do Vite
+    "http://127.0.0.1:5173",  # Alternativa para localhost
+    "http://localhost:8000",  # Backend URL
 ]
 
+# Se estiver em desenvolvimento, permite qualquer origem
+if settings.ENVIRONMENT == "development":
+    origins.extend([
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ])
+
+# Configuração do middleware CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["Content-Disposition"],
+    expose_headers=["Content-Disposition", "X-Session-ID", "Content-Type", "Authorization"],
+    max_age=600,  # Tempo de cache para preflight requests (em segundos)
 )
 
 # Global Exception Handler

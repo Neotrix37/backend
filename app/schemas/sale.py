@@ -27,10 +27,11 @@ class PaymentMethod(str, Enum):
 class CartItemCreate(BaseModel):
     """Esquema para adicionar item ao carrinho"""
     product_id: int
-    quantity: float = Field(gt=0, default=1.0)  # Alterado para float para suportar decimais
+    quantity: float = Field(1, gt=0)  # Alterado para float para suportar decimais
     is_weight_sale: bool = False  # Indica se é venda por peso
     weight_in_kg: Optional[float] = Field(None, gt=0)  # Peso em kg para produtos vendidos por peso
     custom_price: Optional[float] = Field(None, gt=0)  # Preço personalizado para venda por peso
+    update_quantity: bool = False  # Flag to indicate if we should update the quantity instead of adding to it
 
     class Config:
         json_schema_extra = {
@@ -39,13 +40,15 @@ class CartItemCreate(BaseModel):
                 "quantity": 1.5,
                 "is_weight_sale": True,
                 "weight_in_kg": 0.5,
-                "custom_price": 37.5
+                "custom_price": 37.5,
+                "update_quantity": False
             }
         }
 
 class CartItemResponse(CartItemCreate):
     """Resposta para itens do carrinho"""
     name: str = Field(..., alias="nome")
+    sku: Optional[str] = None  # Add SKU field
     unit_price: float
     total_price: float
     is_weight_sale: bool = False  # Adicionado para o frontend saber se é venda por peso
@@ -115,14 +118,16 @@ class SaleCreate(BaseModel):
                     {
                         "product_id": 1,
                         "quantity": 2,
-                        "is_weight_sale": False
+                        "is_weight_sale": False,
+                        "update_quantity": False
                     },
                     {
                         "product_id": 2,
                         "quantity": 1.5,
                         "is_weight_sale": True,
                         "weight_in_kg": 1.5,
-                        "custom_price": 75.50
+                        "custom_price": 75.50,
+                        "update_quantity": False
                     }
                 ]
             }

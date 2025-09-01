@@ -46,26 +46,30 @@ def check_employee_permission(
 @router.get("/", response_model=List[EmployeeResponse], 
           dependencies=[Depends(can_manage_employees)])
 async def get_employees(
+    show_inactive: bool = False,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ) -> Any:
     """
-    Listar todos os funcionários ativos.
-    Apenas administradores e gerentes podem acessar.
+    Listar funcionários.
+    Parâmetros:
+    - show_inactive: Se True, inclui funcionários inativos (apenas admin)
     """
-    # Admin vê todos os funcionários
-    if current_user.role == EmployeeRole.ADMIN:
-        employees = db.query(Employee).filter(Employee.is_active == True).all()
-    # Gerente vê apenas funcionários comuns e caixas
-    elif current_user.role == EmployeeRole.MANAGER:
-        employees = db.query(Employee).filter(
-            Employee.is_active == True,
-            Employee.role.in_([EmployeeRole.CASHIER, EmployeeRole.VIEWER])
-        ).all()
-    else:
-        employees = []
-        
-    return employees
+    query = db.query(Employee)
+    
+    # Se não for admin, forçar mostrar apenas ativos
+    if current_user.role != EmployeeRole.ADMIN:
+        show_inactive = False
+        query = query.filter(Employee.is_active == True)
+    # Se for admin e não pediu inativos, filtrar apenas ativos
+    elif not show_inactive:
+        query = query.filter(Employee.is_active == True)
+    
+    # Filtro adicional para gerentes (só veem caixas e visualizadores)
+    if current_user.role == EmployeeRole.MANAGER:
+        query = query.filter(Employee.role.in_([EmployeeRole.CASHIER, EmployeeRole.VIEWER]))
+    
+    return query.all()
 
 @router.get("/{employee_id}", response_model=EmployeeResponse)
 async def get_employee(
@@ -77,9 +81,9 @@ async def get_employee(
     Obter funcionário por ID.
     Apenas administradores e gerentes podem acessar.
     """
+    # Busca o funcionário mesmo se estiver inativo
     employee = db.query(Employee).filter(
-        Employee.id == employee_id, 
-        Employee.is_active == True
+        Employee.id == employee_id
     ).first()
     
     if not employee:
@@ -155,9 +159,9 @@ async def update_employee(
     Atualizar funcionário.
     Apenas administradores e gerentes podem acessar.
     """
+    # Busca o funcionário mesmo se estiver inativo
     db_employee = db.query(Employee).filter(
-        Employee.id == employee_id,
-        Employee.is_active == True
+        Employee.id == employee_id
     ).first()
     
     if not db_employee:
@@ -209,9 +213,9 @@ async def delete_employee(
     Desativar funcionário (soft delete).
     Apenas administradores e gerentes podem acessar.
     """
+    # Busca o funcionário mesmo se já estiver inativo
     db_employee = db.query(Employee).filter(
-        Employee.id == employee_id,
-        Employee.is_active == True
+        Employee.id == employee_id
     ).first()
     
     if not db_employee:
@@ -219,6 +223,10 @@ async def delete_employee(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Funcionário não encontrado"
         )
+    
+    # Verifica se o funcionário já está inativo
+    if not db_employee.is_active:
+        return  # Já está inativo, retorna sucesso sem fazer nada
     
     # Verifica permissão para desativar o funcionário
     check_employee_permission(current_user, db_employee)

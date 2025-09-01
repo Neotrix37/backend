@@ -80,3 +80,28 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     username: Optional[str] = None
+    is_employee: bool = False
+
+class UserPermissions(BaseModel):
+    can_manage_products: bool = False
+    can_manage_categories: bool = False
+    can_manage_sales: bool = False
+    can_view_all_sales: bool = False
+    can_manage_employees: bool = False
+    can_manage_inventory: bool = False
+    can_view_reports: bool = False
+    can_manage_expenses: bool = False
+    can_close_register: bool = False
+    can_manage_system_settings: bool = False
+
+class UserInfo(BaseModel):
+    username: str
+    email: Optional[str] = None
+    full_name: str
+    role: str
+    is_active: bool
+    is_employee: bool
+    permissions: UserPermissions
+
+class TokenResponse(Token):
+    user: UserInfo

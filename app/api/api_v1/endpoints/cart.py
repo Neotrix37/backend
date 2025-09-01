@@ -103,12 +103,14 @@ async def add_to_cart(
         item_data = {
             "product_id": product.id,
             "nome": product.nome,
+            "sku": product.codigo,  # Usando o campo correto do modelo
             "quantity": quantity,
             "unit_price": unit_price,
             "total_price": total_price,
             "is_weight_sale": product.venda_por_peso,
             "weight_in_kg": float(item.weight_in_kg) if product.venda_por_peso and item.weight_in_kg is not None else None,
-            "custom_price": float(item.custom_price) if product.venda_por_peso and item.custom_price is not None else None
+            "custom_price": float(item.custom_price) if product.venda_por_peso and item.custom_price is not None else None,
+            "estoque_disponivel": product.estoque  # Add available stock to the item data
         }
         
         if item_index is not None:
@@ -117,9 +119,18 @@ async def add_to_cart(
                 # Para itens por peso, substituir completamente
                 cart["items"][item_index] = item_data
             else:
-                # Para itens normais, somar quantidades
-                cart["items"][item_index]["quantity"] += quantity
-                cart["items"][item_index]["total_price"] += total_price
+                # Para itens normais, verificar se é para atualizar ou adicionar
+                if getattr(item, 'update_quantity', False):
+                    # Atualiza a quantidade para o valor exato
+                    cart["items"][item_index]["quantity"] = quantity
+                    cart["items"][item_index]["total_price"] = unit_price * quantity
+                else:
+                    # Soma as quantidades (comportamento atual)
+                    cart["items"][item_index]["quantity"] += quantity
+                    cart["items"][item_index]["total_price"] += total_price
+                
+                # Atualiza o estoque disponível
+                cart["items"][item_index]["estoque_disponivel"] = product.estoque
         else:
             # Adicionar novo item
             cart["items"].append(item_data)
@@ -142,15 +153,20 @@ async def add_to_cart(
 
 @router.get("", response_model=CartResponse)
 async def view_cart(
-    session_id: str = Header(..., alias="X-Session-ID")
+    session_id: str = Header(..., alias="X-Session-ID"),
+    current_user: UserModel = Depends(get_current_active_user)
 ) -> Any:
     """Visualiza o carrinho atual"""
     try:
-        logger.info(f"Visualizando carrinho. Sessão: {session_id}")
+        logger.info(f"Visualizando carrinho. Sessão: {session_id}, Usuário: {current_user.id}")
         
         if session_id not in cart_store:
-            logger.error("Carrinho não encontrado")
-            raise HTTPException(status_code=404, detail="Carrinho não encontrado")
+            logger.info("Carrinho não encontrado, retornando carrinho vazio")
+            return {
+                "items": [],
+                "subtotal": 0.0,
+                "total": 0.0
+            }
         
         cart = cart_store[session_id]
         logger.info(f"Carrinho encontrado: {cart}")
