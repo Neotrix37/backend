@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 from enum import Enum
 
@@ -72,7 +72,7 @@ class SaleItemResponse(BaseModel):
     """Resposta para itens da venda"""
     id: int
     product_id: int
-    product_name: str = Field(..., alias="product.nome")
+    product: Dict[str, Any] = Field(..., description="Informações completas do produto")
     quantity: float
     unit_price: float
     total_price: float
@@ -84,6 +84,9 @@ class SaleItemResponse(BaseModel):
     class Config:
         from_attributes = True
         populate_by_name = True
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }
 
 class SaleResponse(BaseModel):
     """Resposta da venda finalizada"""
@@ -94,12 +97,17 @@ class SaleResponse(BaseModel):
     tax_amount: float
     discount_amount: float
     total_amount: float
-    payment_method: str
+    payment_method: PaymentMethod
     created_at: datetime
     items: List[SaleItemResponse] = []
     
     class Config:
         from_attributes = True
+        json_encoders = {
+            datetime: lambda v: v.isoformat(),
+            PaymentMethod: lambda v: v.value,
+            SaleStatus: lambda v: v.value
+        }
 
 class SaleCreate(BaseModel):
     """Schema para criar uma nova venda"""
