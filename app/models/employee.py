@@ -18,6 +18,7 @@ class Employee(BaseModel):
     can_sell = Column(Boolean, default=True, nullable=False)
     can_manage_inventory = Column(Boolean, default=False, nullable=False)
     can_manage_expenses = Column(Boolean, default=False, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
     
     # Relacionamentos
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
