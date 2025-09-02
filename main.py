@@ -23,6 +23,7 @@ app = FastAPI(
 origins = [
     "https://vuchada-cyan.vercel.app",
     "https://backend-production-f01c.up.railway.app",  # Backend URL em HTTPS
+    "http://backend-production-f01c.up.railway.app",  # Backend URL em HTTP (para compatibilidade)
     "http://localhost:3000",  # Para desenvolvimento local
     "http://localhost:5173",  # Porta padrão do Vite
     "http://127.0.0.1:5173",  # Alternativa para localhost
