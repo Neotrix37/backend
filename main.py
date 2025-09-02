@@ -22,10 +22,11 @@ app = FastAPI(
 # Configuração CORS
 origins = [
     "https://vuchada-cyan.vercel.app",
+    "https://backend-production-f01c.up.railway.app",  # Backend URL em HTTPS
     "http://localhost:3000",  # Para desenvolvimento local
     "http://localhost:5173",  # Porta padrão do Vite
     "http://127.0.0.1:5173",  # Alternativa para localhost
-    "http://localhost:8000",  # Backend URL
+    "http://localhost:8000",  # Backend URL local
 ]
 
 # Se estiver em desenvolvimento, permite qualquer origem
