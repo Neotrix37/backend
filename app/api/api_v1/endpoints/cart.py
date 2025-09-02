@@ -221,7 +221,8 @@ async def checkout(
             total_amount=float(cart_data["total"]),  # Total igual ao subtotal
             payment_method=PaymentMethod(checkout_data.payment_method),
             customer_id=checkout_data.customer_id,
-            notes=checkout_data.notes
+            notes=checkout_data.notes,
+            user_id=current_user.id
         )
         
         db.add(sale)
@@ -288,7 +289,8 @@ async def checkout(
         # Carrega a venda com todos os itens e seus produtos relacionados
         # Usando joinedload para garantir que product.nome esteja disponível para o Pydantic
         sale_with_items = db.query(Sale).options(
-            sqlalchemy.orm.joinedload(Sale.items).joinedload(SaleItem.product)
+            sqlalchemy.orm.joinedload(Sale.items).joinedload(SaleItem.product),
+            sqlalchemy.orm.joinedload(Sale.user)
         ).filter(Sale.id == sale.id).first()
         
         # Garantir que todos os relacionamentos estejam carregados e adicionar product_name

@@ -65,6 +65,22 @@ class CheckoutRequest(BaseModel):
     customer_id: Optional[int] = None
     notes: Optional[str] = None
 
+class SaleCreate(BaseModel):
+    """Esquema para criar uma venda"""
+    sale_number: str
+    status: SaleStatus = SaleStatus.PENDENTE
+    subtotal: float
+    tax_amount: float = 0.0
+    discount_amount: float = 0.0
+    total_amount: float
+    payment_method: PaymentMethod
+    customer_id: Optional[int] = None
+    notes: Optional[str] = None
+    items: List[CartItemCreate]
+
+    class Config:
+        from_attributes = True
+
 class SaleItemResponse(BaseModel):
     """Resposta para itens da venda"""
     id: int
@@ -106,6 +122,8 @@ class SaleResponse(BaseModel):
     created_at: datetime
     items: List[SaleItemResponse] = []
     message: Optional[str] = None
+    user_id: Optional[int] = None
+    user_name: Optional[str] = None
     
     class Config:
         from_attributes = True

@@ -1,4 +1,5 @@
-from sqlalchemy import Column, String, Boolean, Numeric, Integer, ForeignKey
+import sqlalchemy as sa
+from sqlalchemy import Column, String, Boolean, Numeric, Integer, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from .base import BaseModel
 from .user import User  # Importamos o User para o relacionamento
@@ -19,6 +20,10 @@ class Employee(BaseModel):
     can_manage_inventory = Column(Boolean, default=False, nullable=False)
     can_manage_expenses = Column(Boolean, default=False, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
+    
+    # Sincronização
+    last_updated = Column(DateTime(timezone=True), server_default=sa.text('now()'), nullable=False)
+    synced = Column(Boolean, default=False, nullable=False)
     
     # Relacionamentos
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)

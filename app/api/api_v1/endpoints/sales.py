@@ -23,11 +23,12 @@ async def get_sales(
 ) -> Any:
     """List all sales with their items and product details"""
     try:
-        # Carrega as vendas com seus itens e produtos relacionados
+        # Carrega as vendas com seus itens, produtos e usuário relacionados
         sales = db.query(Sale)\
             .options(
                 joinedload(Sale.items)\
-                .joinedload(SaleItem.product)\
+                .joinedload(SaleItem.product),
+                joinedload(Sale.user)
             )\
             .filter(Sale.is_active == True)\
             .order_by(Sale.created_at.desc())\
@@ -48,6 +49,8 @@ async def get_sales(
                 "total_amount": float(sale.total_amount) if sale.total_amount else 0.0,
                 "payment_method": sale.payment_method,
                 "created_at": sale.created_at,
+                "user_id": sale.user_id,
+                "user_name": sale.user.full_name if sale.user else "Usuário Desconhecido",
                 "items": [
                     {
                         "id": item.id,
@@ -81,11 +84,12 @@ async def get_sale(
 ) -> Any:
     """Get sale by ID with items and product details"""
     try:
-        # Carrega a venda com seus itens e produtos relacionados
+        # Carrega a venda com seus itens, produtos e usuário relacionados
         sale = db.query(Sale)\
             .options(
                 joinedload(Sale.items)\
-                .joinedload(SaleItem.product)\
+                .joinedload(SaleItem.product),
+                joinedload(Sale.user)
             )\
             .filter(Sale.id == sale_id, Sale.is_active == True)\
             .first()
@@ -104,6 +108,8 @@ async def get_sale(
             "total_amount": float(sale.total_amount) if sale.total_amount else 0.0,
             "payment_method": sale.payment_method,
             "created_at": sale.created_at,
+            "user_id": sale.user_id,
+            "user_name": sale.user.full_name if sale.user else "Usuário Desconhecido",
             "items": [
                 {
                     "id": item.id,
@@ -147,6 +153,7 @@ async def create_sale(
             total_amount=0,
             payment_method=sale_data.payment_method,
             customer_id=sale_data.customer_id,
+            user_id=current_user.id,
             notes=sale_data.notes,
             created_by=current_user.id
         )

@@ -1,6 +1,7 @@
 from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 from typing import Optional
+from .sync import SyncBase
 
 class BaseSchema(BaseModel):
     """Schema base com configurações comuns"""
@@ -17,7 +18,7 @@ class BaseResponse(BaseSchema):
     updated_at: datetime
     is_active: bool
 
-class BaseCreate(BaseSchema):
+class BaseCreate(BaseSchema, SyncBase):
     """Schema base para criação"""
     pass
 
