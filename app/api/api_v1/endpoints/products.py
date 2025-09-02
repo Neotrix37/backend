@@ -18,6 +18,8 @@ async def get_products(
 	search: Optional[str] = Query(None, description="Termo de busca por nome ou código"),
 	category_id: Optional[int] = Query(None, description="Filtrar por categoria"),
 	include_inactive: bool = Query(False, description="Incluir produtos inativos"),
+	sort_by: str = Query("nome", description="Campo para ordenação: nome, codigo, preco_venda"),
+	sort_order: str = Query("asc", description="Ordem de classificação: asc, desc"),
 	db: Session = Depends(get_db)
 ) -> Any:
 	query = select(Product)
@@ -37,6 +39,17 @@ async def get_products(
 				Product.codigo.ilike(like)
 			)
 		)
+	
+	# Ordenação
+	if sort_by == "nome":
+		query = query.order_by(Product.nome.asc() if sort_order == "asc" else Product.nome.desc())
+	elif sort_by == "codigo":
+		query = query.order_by(Product.codigo.asc() if sort_order == "asc" else Product.codigo.desc())
+	elif sort_by == "preco_venda":
+		query = query.order_by(Product.preco_venda.asc() if sort_order == "asc" else Product.preco_venda.desc())
+	else:
+		# Ordenação padrão por nome (A-Z)
+		query = query.order_by(Product.nome.asc())
 
 	query = query.offset(skip).limit(limit)
 	products = db.execute(query).scalars().all()

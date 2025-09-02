@@ -2,7 +2,6 @@ from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 from decimal import Decimal
 from enum import Enum
-from datetime import datetime
 from .base import BaseResponse, BaseCreate, BaseUpdate
 
 class UserRole(str, Enum):
@@ -54,17 +53,7 @@ class UserResponse(BaseResponse):
     full_name: str
     role: UserRole
     is_superuser: bool
-    salary: Optional[Decimal] = None
-    is_active: bool = True
-    created_at: datetime
-    updated_at: datetime
-    
-    class Config:
-        from_attributes = True
-        json_encoders = {
-            Decimal: lambda v: str(round(float(v), 2)) if v is not None else None,
-            datetime: lambda v: v.isoformat()
-        }
+    salary: Optional[Decimal]
 
 class UserLogin(BaseModel):
     username: str
@@ -80,28 +69,3 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     username: Optional[str] = None
-    is_employee: bool = False
-
-class UserPermissions(BaseModel):
-    can_manage_products: bool = False
-    can_manage_categories: bool = False
-    can_manage_sales: bool = False
-    can_view_all_sales: bool = False
-    can_manage_employees: bool = False
-    can_manage_inventory: bool = False
-    can_view_reports: bool = False
-    can_manage_expenses: bool = False
-    can_close_register: bool = False
-    can_manage_system_settings: bool = False
-
-class UserInfo(BaseModel):
-    username: str
-    email: Optional[str] = None
-    full_name: str
-    role: str
-    is_active: bool
-    is_employee: bool
-    permissions: UserPermissions
-
-class TokenResponse(Token):
-    user: UserInfo

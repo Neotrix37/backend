@@ -16,72 +16,10 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
 class UserRole(str, enum.Enum):
-    ADMIN = "admin"        # Acesso total ao sistema
-    MANAGER = "manager"    # Pode gerenciar produtos, categorias, vendas e funcionários (exceto admins)
-    CASHIER = "cashier"    # Pode realizar vendas e ver suas próprias vendas
-    VIEWER = "viewer"      # Apenas visualização
-
-# Permissões específicas por papel
-ROLE_PERMISSIONS = {
-    UserRole.ADMIN: {
-        "can_manage_users": True,
-        "can_manage_products": True,
-        "can_manage_categories": True,
-        "can_manage_sales": True,
-        "can_view_all_sales": True,
-        "can_manage_employees": True,
-        "can_manage_inventory": True,
-        "can_view_reports": True,
-        "can_manage_expenses": True,
-        "can_close_register": True,
-        "can_manage_system_settings": True
-    },
-    UserRole.MANAGER: {
-        "can_manage_users": False,
-        "can_manage_products": True,
-        "can_manage_categories": True,
-        "can_manage_sales": True,
-        "can_view_all_sales": True,
-        "can_manage_employees": True,  # Mas não pode gerenciar outros gerentes ou admins
-        "can_manage_inventory": True,
-        "can_view_reports": True,
-        "can_manage_expenses": True,
-        "can_close_register": True,
-        "can_manage_system_settings": False
-    },
-    UserRole.CASHIER: {
-        "can_manage_users": False,
-        "can_manage_products": False,
-        "can_manage_categories": False,
-        "can_manage_sales": False,
-        "can_view_all_sales": False,  # Só vê as próprias vendas
-        "can_manage_employees": False,
-        "can_manage_inventory": False,
-        "can_view_reports": False,
-        "can_manage_expenses": False,
-        "can_close_register": True,   # Pode fechar o próprio caixa
-        "can_manage_system_settings": False
-    },
-    UserRole.VIEWER: {
-        "can_manage_users": False,
-        "can_manage_products": False,
-        "can_manage_categories": False,
-        "can_manage_sales": False,
-        "can_view_all_sales": True,   # Pode ver todas as vendas (somente leitura)
-        "can_manage_employees": False,
-        "can_manage_inventory": False,
-        "can_view_reports": True,     # Pode ver relatórios (somente leitura)
-        "can_manage_expenses": False,
-        "can_close_register": False,
-        "can_manage_system_settings": False
-    }
-}
-
-def has_permission(user: 'User', permission: str) -> bool:
-    """Verifica se o usuário tem uma permissão específica"""
-    if not user or not user.role:
-        return False
-    return ROLE_PERMISSIONS.get(user.role, {}).get(permission, False)
+    ADMIN = "admin"
+    MANAGER = "manager"
+    CASHIER = "cashier"
+    VIEWER = "viewer"
 
 class User(BaseModel):
     """Modelo para usuários do sistema"""

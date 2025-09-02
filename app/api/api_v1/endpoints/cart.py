@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Header
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
+import sqlalchemy.orm
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import logging
@@ -12,7 +13,7 @@ from app.models.product import Product
 from app.models.sale import Sale, SaleStatus
 from app.models.sale_item import SaleItem
 from app.schemas.sale import CartItemCreate, CartResponse, CheckoutRequest, SaleResponse, PaymentMethod, CartItemResponse
-from app.models.user import User as UserModel
+from app.models.user import User
 from app.core.security import get_current_active_user
 
 router = APIRouter(tags=["cart"])
@@ -37,7 +38,7 @@ async def add_to_cart(
     item: CartItemCreate,
     session_id: str = Header(..., alias="X-Session-ID"),
     db: Session = Depends(get_db),
-    current_user: UserModel = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user)
 ):
     """Adiciona um item ao carrinho"""
     try:
@@ -103,14 +104,12 @@ async def add_to_cart(
         item_data = {
             "product_id": product.id,
             "nome": product.nome,
-            "sku": product.codigo,  # Usando o campo correto do modelo
             "quantity": quantity,
             "unit_price": unit_price,
             "total_price": total_price,
             "is_weight_sale": product.venda_por_peso,
             "weight_in_kg": float(item.weight_in_kg) if product.venda_por_peso and item.weight_in_kg is not None else None,
-            "custom_price": float(item.custom_price) if product.venda_por_peso and item.custom_price is not None else None,
-            "estoque_disponivel": product.estoque  # Add available stock to the item data
+            "custom_price": float(item.custom_price) if product.venda_por_peso and item.custom_price is not None else None
         }
         
         if item_index is not None:
@@ -119,18 +118,9 @@ async def add_to_cart(
                 # Para itens por peso, substituir completamente
                 cart["items"][item_index] = item_data
             else:
-                # Para itens normais, verificar se é para atualizar ou adicionar
-                if getattr(item, 'update_quantity', False):
-                    # Atualiza a quantidade para o valor exato
-                    cart["items"][item_index]["quantity"] = quantity
-                    cart["items"][item_index]["total_price"] = unit_price * quantity
-                else:
-                    # Soma as quantidades (comportamento atual)
-                    cart["items"][item_index]["quantity"] += quantity
-                    cart["items"][item_index]["total_price"] += total_price
-                
-                # Atualiza o estoque disponível
-                cart["items"][item_index]["estoque_disponivel"] = product.estoque
+                # Para itens normais, somar quantidades
+                cart["items"][item_index]["quantity"] += quantity
+                cart["items"][item_index]["total_price"] += total_price
         else:
             # Adicionar novo item
             cart["items"].append(item_data)
@@ -153,19 +143,19 @@ async def add_to_cart(
 
 @router.get("", response_model=CartResponse)
 async def view_cart(
-    session_id: str = Header(..., alias="X-Session-ID"),
-    current_user: UserModel = Depends(get_current_active_user)
+    session_id: str = Header(..., alias="X-Session-ID")
 ) -> Any:
     """Visualiza o carrinho atual"""
     try:
-        logger.info(f"Visualizando carrinho. Sessão: {session_id}, Usuário: {current_user.id}")
+        logger.info(f"Visualizando carrinho. Sessão: {session_id}")
         
         if session_id not in cart_store:
             logger.info("Carrinho não encontrado, retornando carrinho vazio")
             return {
                 "items": [],
                 "subtotal": 0.0,
-                "total": 0.0
+                "total": 0.0,
+                "tax_amount": 0.0
             }
         
         cart = cart_store[session_id]
@@ -173,8 +163,9 @@ async def view_cart(
         
         return {
             "items": cart["items"],
-            "subtotal": cart["subtotal"],
-            "total": cart["total"]
+            "subtotal": cart.get("subtotal", 0.0),
+            "total": cart.get("total", 0.0),
+            "tax_amount": cart.get("tax_amount", 0.0)
         }
         
     except HTTPException as he:
@@ -192,144 +183,135 @@ async def checkout(
     checkout_data: CheckoutRequest,
     session_id: str = Header(..., alias="X-Session-ID"),
     db: Session = Depends(get_db),
-    current_user: UserModel = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user)
 ):
     """Finaliza a compra e cria a venda"""
     try:
         logger.info(f"Iniciando checkout. Sessão: {session_id}, Usuário: {current_user.id}")
+        logger.info(f"Dados do checkout: {checkout_data.dict()}")
         
         if session_id not in cart_store:
             logger.error("Carrinho não encontrado")
             raise HTTPException(status_code=404, detail="Carrinho não encontrado")
         
         cart = cart_store[session_id]
+        logger.info(f"Carrinho encontrado: {cart}")
         
         if not cart["items"]:
             logger.error("Carrinho vazio")
-            raise HTTPException(status_code=400, detail="O carrinho está vazio")
-        
-        # Start transaction
-        db.begin()
-        
-        try:
-            # Create sale
-            sale = Sale(
-                sale_number=f"V{datetime.now().strftime('%Y%m%d%H%M%S')}",
-                status=SaleStatus.CONCLUIDA,
-                subtotal=float(cart["subtotal"]),
-                tax_amount=0.0,
-                discount_amount=0.0,
-                total_amount=float(cart["total"]),
-                payment_method=checkout_data.payment_method,
-                customer_id=checkout_data.customer_id,
-                notes=checkout_data.notes,
-                user_id=current_user.id
+            raise HTTPException(
+                status_code=400,
+                detail="O carrinho está vazio"
             )
-            db.add(sale)
-            db.flush()
+        
+        # Cálculo dos totais (sem IVA)
+        cart_data = {
+            "items": cart["items"],
+            "subtotal": cart["subtotal"],
+            "total": cart["total"]
+        }
+        logger.info(f"Totais calculados: {cart_data}")
+        
+        # Cria a venda
+        sale = Sale(
+            sale_number=f"V{datetime.now().strftime('%Y%m%d%H%M%S')}",
+            status=SaleStatus.CONCLUIDA,
+            subtotal=float(cart_data["subtotal"]),
+            tax_amount=0.0,  # Sem IVA
+            total_amount=float(cart_data["total"]),  # Total igual ao subtotal
+            payment_method=PaymentMethod(checkout_data.payment_method),
+            customer_id=checkout_data.customer_id,
+            notes=checkout_data.notes
+        )
+        
+        db.add(sale)
+        db.flush()  # Gera o ID da venda sem fazer commit
+        logger.info(f"Venda criada com ID: {sale.id}")
+        
+        # Adiciona os itens da venda e atualiza o estoque
+        for item in cart_data["items"]:
+            logger.info(f"Processando item: {item}")
             
-            # Process items
-            for item in cart["items"]:
-                product = db.query(Product).filter(
-                    Product.id == item["product_id"],
-                    Product.is_active == True
-                ).with_for_update().first()
-                
-                if not product:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Produto com ID {item['product_id']} não encontrado ou inativo"
-                    )
-                
-                # Update stock if not sold by weight
-                if not product.venda_por_peso:
-                    if product.estoque < item["quantity"]:
-                        raise HTTPException(
-                            status_code=400,
-                            detail=f"Estoque insuficiente para o produto {product.nome}"
-                        )
-                    product.estoque -= item["quantity"]
-                    db.add(product)
-                
-                # Create sale item
-                sale_item = SaleItem(
-                    sale_id=sale.id,
-                    product_id=product.id,
-                    quantity=item["quantity"],
-                    unit_price=float(item["unit_price"]),
-                    total_price=float(item["total_price"])
-                )
-                db.add(sale_item)
+            # Busca o produto para atualizar o estoque
+            product = db.query(Product).filter(
+                Product.id == item["product_id"],
+                Product.is_active == True
+            ).with_for_update().first()  # Bloqueia o registro para atualização
             
-            # Commit transaction
-            db.commit()
-            
-            # Clear cart
-            cart_store.pop(session_id, None)
-            
-            # Reload sale with relationships
-            sale = db.query(Sale).options(
-                joinedload(Sale.items).joinedload(SaleItem.product)
-            ).filter(Sale.id == sale.id).first()
-            
-            if not sale:
+            if not product:
+                db.rollback()
+                logger.error(f"Produto com ID {item['product_id']} não encontrado")
                 raise HTTPException(
-                    status_code=500,
-                    detail="Erro ao recuperar os dados da venda"
+                    status_code=400,
+                    detail=f"Produto com ID {item['product_id']} não encontrado"
                 )
             
-            # Prepare response
-            response_items = []
-            for item in sale.items:
-                response_items.append({
-                    "id": item.id,
-                    "product_id": item.product_id,
-                    "product": {
-                        "id": item.product.id,
-                        "nome": item.product.nome,
-                        "codigo": item.product.codigo,
-                        "preco_venda": float(item.product.preco_venda),
-                        "venda_por_peso": item.product.venda_por_peso,
-                        "unidade_medida": item.product.unidade_medida,
-                        "estoque_atual": float(item.product.estoque) if not item.product.venda_por_peso else None
-                    },
-                    "quantity": float(item.quantity),
-                    "unit_price": float(item.unit_price),
-                    "total_price": float(item.total_price),
-                    "is_weight_sale": item.product.venda_por_peso,
-                    "weight_in_kg": float(item.quantity) if item.product.venda_por_peso else None,
-                    "custom_price": float(item.unit_price) if item.product.venda_por_peso else None,
-                    "created_at": item.created_at
-                })
+            logger.info(f"Produto encontrado: {product.nome}, Estoque atual: {product.estoque}")
             
-            response_data = {
-                "id": sale.id,
-                "sale_number": sale.sale_number,
-                "status": sale.status,
-                "subtotal": float(sale.subtotal),
-                "tax_amount": float(sale.tax_amount),
-                "discount_amount": float(sale.discount_amount),
-                "total_amount": float(sale.total_amount),
-                "payment_method": sale.payment_method,
-                "created_at": sale.created_at,
-                "items": response_items
+            # Verifica se há estoque suficiente
+            if not product.venda_por_peso and product.estoque < item["quantity"]:
+                db.rollback()
+                logger.error(f"Estoque insuficiente para o produto {product.nome}. Estoque atual: {product.estoque}, Quantidade solicitada: {item['quantity']}")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Estoque insuficiente para o produto {product.nome}"
+                )
+            
+            # Atualiza o estoque
+            if not product.venda_por_peso:
+                novo_estoque = product.estoque - item["quantity"]
+                logger.info(f"Atualizando estoque do produto {product.id} de {product.estoque} para {novo_estoque}")
+                product.estoque = novo_estoque
+                db.add(product)
+            
+            # Cria o item da venda com todos os campos necessários
+            sale_item_data = {
+                "sale_id": sale.id,
+                "product_id": item["product_id"],
+                "quantity": item["quantity"],
+                "unit_price": float(item["unit_price"]),
+                "total_price": float(item["total_price"]),
+                "is_weight_sale": item.get("is_weight_sale", False),
+                "weight_in_kg": item.get("weight_in_kg"),
+                "custom_price": item.get("custom_price")
             }
             
-            return response_data
-            
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Erro durante o checkout: {str(e)}", exc_info=True)
-            raise
-            
+            # Criamos o item da venda com todos os campos
+            sale_item = SaleItem(**sale_item_data)
+            db.add(sale_item)
+            logger.info(f"Item de venda criado: {sale_item}")
+        
+        # Confirma a transação
+        db.commit()
+        logger.info("Transação confirmada com sucesso")
+        
+        # Carrega a venda com todos os itens e seus produtos relacionados
+        # Usando joinedload para garantir que product.nome esteja disponível para o Pydantic
+        sale_with_items = db.query(Sale).options(
+            sqlalchemy.orm.joinedload(Sale.items).joinedload(SaleItem.product)
+        ).filter(Sale.id == sale.id).first()
+        
+        # Garantir que todos os relacionamentos estejam carregados e adicionar product_name
+        for item in sale_with_items.items:
+            # Acessar o nome do produto para garantir que está carregado
+            if item.product:
+                # Adicionar o nome do produto diretamente ao item para facilitar a serialização
+                item.product_name = item.product.nome
+        
+        # Limpa o carrinho após a finalização
+        cart_store.pop(session_id, None)
+        logger.info("Carrinho limpo após finalização")
+        
+        # Criar a resposta com a mensagem de sucesso
+        sale_with_items.message = "Venda finalizada com sucesso!"
+        
+        return sale_with_items
+        
     except HTTPException as he:
         logger.error(f"Erro HTTP: {str(he.detail)}")
         raise
-        
     except Exception as e:
         logger.error(f"Erro inesperado: {str(e)}", exc_info=True)
-        if db.in_transaction():
-            db.rollback()
         raise HTTPException(
             status_code=500,
             detail=f"Erro ao processar a venda: {str(e)}"
@@ -340,7 +322,7 @@ async def remove_item_from_cart(
     product_id: int,
     session_id: str = Header(..., alias="X-Session-ID"),
     db: Session = Depends(get_db),
-    current_user: UserModel = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user)
 ) -> dict:
     """Remove um item específico do carrinho"""
     try:
@@ -391,7 +373,7 @@ async def remove_item_from_cart(
 @router.delete("", response_model=dict)
 async def clear_cart(
     session_id: str = Header(..., alias="X-Session-ID"),
-    current_user: UserModel = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user)
 ) -> dict:
     """Remove todos os itens do carrinho"""
     try:
