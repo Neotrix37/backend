@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     
     # Configurações de CORS e HTTPS
     ALLOWED_ORIGINS: str = "*"
-    FORCE_HTTPS: bool = True
+    FORCE_HTTPS: bool = False  # Desativado para permitir conexões HTTP
     
     @property
     def trusted_hosts(self) -> List[str]:
@@ -58,7 +58,9 @@ class Settings(BaseSettings):
             
         origins = [
             "https://*.railway.app",
-            "https://backend-production-f01c.up.railway.app"
+            "http://*.railway.app",
+            "https://backend-production-f01c.up.railway.app",
+            "http://backend-production-f01c.up.railway.app"
         ]
         
         # Adiciona origens personalizadas se especificadas
